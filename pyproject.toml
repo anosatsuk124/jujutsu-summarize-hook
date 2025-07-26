@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jj-hook"
+version = "0.1.0"
+description = "Claude Code hooks for Jujutsu (jj) with AI-powered commit summaries"
+readme = "README.md"
+authors = [
+    { name = "jj-hook", email = "noreply@example.com" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "click>=8.0.0",
+    "litellm>=1.0.0",
+    "rich>=13.0.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+jj-hook = "jj_hook.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/example/jujutsu-summarize-hook"
+Repository = "https://github.com/example/jujutsu-summarize-hook"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jj_hook"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "PT"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

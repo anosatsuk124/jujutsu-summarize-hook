@@ -4,39 +4,86 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains hooks and configurations for Claude Code, specifically focused on integrating with the Jujutsu version control system (jj). The project provides a CLI tool `jj-hook` for installing hooks that work with Claude Code's hook system.
+This repository provides AI-powered hooks for Claude Code that integrate with the Jujutsu version control system (jj). The project includes a CLI tool `jj-hook` for setting up automatic commit and branch creation workflows using LiteLLM.
 
 ## Project Structure
 
-- `README.md` - Main project documentation with CLI usage instructions
-- `docs/anthropic/` - Documentation directory containing Claude Code hook reference materials
-  - `hooks.md` - Comprehensive Claude Code hooks reference documentation
-  - `READEME.md` - Directory overview explaining the Anthropic documentation contents
+### Core Files
+- `pyproject.toml` - Python package configuration using uv/hatchling
+- `.mise.toml` - Development environment and task configuration
+- `README.md` - Complete project documentation with installation instructions
+
+### Source Code (`src/jj_hook/`)
+- `cli.py` - Main CLI implementation with click framework
+- `summarizer.py` - LiteLLM integration for AI-powered commit messages
+- `config.py` - Configuration management with environment variables
+- `hooks/post_tool_use.py` - Hook for automatic commits after file edits
+- `hooks/user_prompt_submit.py` - Hook for automatic branch creation from prompts
+
+### Documentation
+- `docs/anthropic/hooks.md` - Claude Code hooks reference (from Anthropic docs)
+
+## Development Environment
+
+### Package Management
+- Uses `uv` for Python package management
+- Uses `mise` for environment management and task running
+- Python 3.9+ required
+
+### Key Dependencies
+- `click` - CLI framework
+- `litellm` - Multi-provider LLM integration
+- `rich` - Terminal formatting
+- `pydantic` - Configuration validation
+
+### Development Commands
+```bash
+mise install          # Install Python and tools
+uv sync --dev         # Install dependencies
+uv run ruff format .  # Format code
+uv run mypy src/     # Type checking
+uv run pytest       # Run tests
+```
 
 ## CLI Usage
 
 ### Installing Hooks
-
-Install hooks in a specific directory:
 ```bash
-jj-hook install --path .
+jj-hook install --path .  # Install in specific directory
+jj-hook install           # Install in current directory
 ```
 
-Install hooks in the current directory:
-```bash
-jj-hook install
-```
+### Configuration
+Environment variables for LLM configuration:
+- `JJ_HOOK_MODEL` - LLM model (default: gpt-3.5-turbo)
+- `JJ_HOOK_LANGUAGE` - Prompt language (default: japanese)
+- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` - API keys
 
-## Development Context
+## Hook Functionality
 
-This is a documentation and configuration project focused on:
-- Jujutsu (jj) version control system integration
-- Claude Code hook system configuration
-- Providing reference documentation for hook development
+### PostToolUse Hook
+- Triggers after Edit/Write/MultiEdit operations
+- Generates AI-powered commit messages from `jj status` and `jj diff`
+- Automatically commits changes with descriptive messages
 
-The repository contains no build system, test framework, or package management files, indicating it's primarily a documentation and configuration repository rather than a traditional software project.
+### UserPromptSubmit Hook  
+- Triggers when user submits prompts to Claude Code
+- Creates new jj branches for work-related prompts
+- Skips question-type prompts to avoid unnecessary branches
 
-## Key Files
+## Implementation Notes
 
-- `README.md:6-20` - Contains the main CLI usage instructions for the `jj-hook` tool
-- `docs/anthropic/hooks.md` - Complete reference documentation for Claude Code hooks system (sourced from Anthropic's official documentation)
+### Error Handling
+- Graceful fallbacks when LiteLLM is unavailable
+- Non-blocking failures for branch creation
+- Proper exit codes for Claude Code hook system
+
+### Localization
+- Primary language: Japanese (as per CLAUDE.md requirements)
+- Supports both Japanese and English prompts
+- Japanese commit messages and error reporting
+
+### Security
+- No hardcoded API keys or secrets
+- Environment variable configuration only
+- Safe subprocess execution with timeouts

@@ -1,0 +1,19 @@
+[tools]
+python = "3.12"
+uv = "latest"
+
+[env]
+# Python環境設定
+PYTHONPATH = "./src"
+
+# LiteLLM設定用の環境変数例
+# OPENAI_API_KEY = "your-api-key-here"
+# ANTHROPIC_API_KEY = "your-api-key-here"
+# LITELLM_LOG = "DEBUG"
+
+[tasks]
+install = "uv sync"
+test = "uv run pytest"
+lint = "uv run ruff check ."
+format = "uv run ruff format ."
+typecheck = "uv run mypy src/"
