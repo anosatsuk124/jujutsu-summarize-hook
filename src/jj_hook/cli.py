@@ -800,18 +800,6 @@ def get_diff_summary(cwd: str) -> str:
             return "差分の取得に失敗しました"
     except Exception:
         return "差分の取得中にエラーが発生しました"
-    try:
-        result = subprocess.run(
-            ["jj", "diff", "--stat"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            return "差分の取得に失敗しました"
     except Exception:
         return "差分の取得中にエラーが発生しました"
 
