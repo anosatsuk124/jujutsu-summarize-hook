@@ -19,7 +19,8 @@ try:
     from ..summarizer import JujutsuSummarizer, SummaryConfig
 except ImportError:
     # フォールバック：スクリプトが単体で実行された場合
-    sys.stderr.write("警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。\n")
+    warning_msg = "警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。\n" if LANGUAGE == "japanese" else "Warning: Could not import jj_hook package. Running in standalone mode.\n"
+    sys.stderr.write(warning_msg)
 
 
 def is_jj_repository(cwd: str) -> bool:
@@ -85,18 +86,18 @@ def generate_revision_description_from_tool(tool_name: str, tool_input: dict) ->
     if file_path:
         file_name = Path(file_path).name
         if tool_name == "Write":
-            base_description = f"{file_name}を作成"
+            base_description = f"{file_name}を作成" if LANGUAGE == "japanese" else f"Create {file_name}"
         elif tool_name == "Edit":
-            base_description = f"{file_name}を修正"
+            base_description = f"{file_name}を修正" if LANGUAGE == "japanese" else f"Edit {file_name}"
         elif tool_name == "MultiEdit":
-            base_description = f"{file_name}を更新"
+            base_description = f"{file_name}を更新" if LANGUAGE == "japanese" else f"Update {file_name}"
     else:
         if tool_name == "Write":
-            base_description = "新規ファイル作成"
+            base_description = "新規ファイル作成" if LANGUAGE == "japanese" else "Create new file"
         elif tool_name == "Edit":
-            base_description = "ファイル修正"
+            base_description = "ファイル修正" if LANGUAGE == "japanese" else "Edit file"
         elif tool_name == "MultiEdit":
-            base_description = "ファイル更新"
+            base_description = "ファイル更新" if LANGUAGE == "japanese" else "Update file"
     
     # 内容から詳細を推測
     content = tool_input.get("content", "") or tool_input.get("new_string", "")
@@ -105,17 +106,17 @@ def generate_revision_description_from_tool(tool_name: str, tool_input: dict) ->
         
         # 特定のキーワードから作業内容を判断
         if any(keyword in content_lower for keyword in ["function", "def ", "class"]):
-            base_description += " (関数・クラス追加)"
+            base_description += " (関数・クラス追加)" if LANGUAGE == "japanese" else " (add functions/classes)"
         elif any(keyword in content_lower for keyword in ["import", "require"]):
-            base_description += " (依存関係追加)"
+            base_description += " (依存関係追加)" if LANGUAGE == "japanese" else " (add dependencies)"
         elif any(keyword in content_lower for keyword in ["test", "spec"]):
-            base_description += " (テスト追加)"
+            base_description += " (テスト追加)" if LANGUAGE == "japanese" else " (add tests)"
         elif any(keyword in content_lower for keyword in ["fix", "bug", "error"]):
-            base_description += " (バグ修正)"
+            base_description += " (バグ修正)" if LANGUAGE == "japanese" else " (bug fix)"
         elif any(keyword in content_lower for keyword in ["feature", "新機能"]):
-            base_description += " (機能追加)"
+            base_description += " (機能追加)" if LANGUAGE == "japanese" else " (add feature)"
         elif any(keyword in content_lower for keyword in ["refactor", "リファクタ"]):
-            base_description += " (リファクタリング)"
+            base_description += " (リファクタリング)" if LANGUAGE == "japanese" else " (refactoring)"
     
     # 長すぎる場合は切り詰める
     if len(base_description) > 60:
