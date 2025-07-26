@@ -1,4 +1,3 @@
-#!/usr/bin/env -S uv run python3
 """
 PostToolUse hook for automatic commits after file edits.
 
@@ -14,9 +13,6 @@ from pathlib import Path
 
 # 言語設定の取得
 LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
-
-# パッケージのインポートパスを追加
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 try:
     from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
