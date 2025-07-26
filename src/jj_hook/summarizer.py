@@ -235,3 +235,232 @@ Output only the branch name:"""
         except Exception as e:
             error_msg = f"ブランチ名生成エラー: {str(e)}" if self.config.prompt_language == "japanese" else f"Branch name generation error: {str(e)}"
             return False, error_msg
+
+
+@dataclass
+class SquashProposal:
+    """統合提案の情報"""
+    source_commits: List[str]  # 統合元コミットID
+    target_commit: str         # 統合先コミットID
+    reason: str               # 統合理由
+    suggested_message: str    # 推奨メッセージ
+
+
+class CommitOrganizer:
+    """コミット履歴を整理するクラス。"""
+    
+    def __init__(self, config: Optional[SummaryConfig] = None) -> None:
+        """初期化。"""
+        self.config = config or SummaryConfig()
+        
+        # 環境変数からモデルを上書き
+        if model_env := os.environ.get("JJ_HOOK_MODEL"):
+            self.config.model = model_env
+            
+    def get_commit_log(self, cwd: str, limit: int = 20) -> Tuple[bool, str]:
+        """コミット履歴を取得する。"""
+        try:
+            result = subprocess.run(
+                ["jj", "log", "-r", "present(@)::heads(main)", "--limit", str(limit), "--no-graph"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                timeout=15
+            )
+            if result.returncode == 0:
+                return True, result.stdout.strip()
+            else:
+                return False, f"jj log failed: {result.stderr}"
+        except Exception as e:
+            return False, f"jj log error: {str(e)}"
+    
+    def get_commit_details(self, cwd: str, commit_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+        """複数のコミットの詳細情報を取得する。"""
+        details = {}
+        
+        for commit_id in commit_ids:
+            try:
+                # コミットメッセージ取得
+                msg_result = subprocess.run(
+                    ["jj", "log", "-r", commit_id, "-T", "description"],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                # コミット差分取得  
+                diff_result = subprocess.run(
+                    ["jj", "diff", "-r", commit_id, "--stat"],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                if msg_result.returncode == 0 and diff_result.returncode == 0:
+                    details[commit_id] = {
+                        "message": msg_result.stdout.strip(),
+                        "diff_stat": diff_result.stdout.strip(),
+                    }
+                    
+            except Exception as e:
+                details[commit_id] = {
+                    "message": f"取得失敗: {str(e)}",
+                    "diff_stat": "",
+                }
+                
+        return details
+    
+    def analyze_commits(self, cwd: str, limit: int = 20) -> Tuple[bool, List[SquashProposal]]:
+        """
+        コミット履歴を分析して統合提案を生成する。
+        
+        Returns:
+            (success, proposals): 成功フラグと統合提案のリスト
+        """
+        # コミット履歴取得
+        success, log_output = self.get_commit_log(cwd, limit)
+        if not success:
+            return False, []
+        
+        # コミットIDを抽出（簡単な解析）
+        commit_ids = []
+        for line in log_output.split('\n'):
+            if line.strip() and not line.startswith(' ') and not line.startswith('\t'):
+                # コミットIDらしき文字列を抽出
+                parts = line.split()
+                if parts and len(parts[0]) >= 8:  # 短縮されたコミットIDを想定
+                    commit_ids.append(parts[0])
+        
+        if len(commit_ids) < 2:
+            return True, []  # 統合対象がない
+        
+        # 上位5件のコミット詳細を取得
+        recent_commits = commit_ids[:min(5, len(commit_ids))]
+        commit_details = self.get_commit_details(cwd, recent_commits)
+        
+        # AI分析でスカッシュ提案を生成
+        return self._generate_squash_proposals(log_output, commit_details)
+    
+    def _generate_squash_proposals(self, log_output: str, commit_details: Dict[str, Dict[str, Any]]) -> Tuple[bool, List[SquashProposal]]:
+        """AI分析でスカッシュ提案を生成する。"""
+        try:
+            if self.config.prompt_language == "japanese":
+                prompt = self._build_japanese_analysis_prompt(log_output, commit_details)
+            else:
+                prompt = self._build_english_analysis_prompt(log_output, commit_details)
+            
+            completion_kwargs = {
+                "model": self.config.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 500,
+                "temperature": 0.1
+            }
+            
+            # GitHub Copilot使用時のヘッダーを追加
+            if self.config.model.startswith("github_copilot/"):
+                completion_kwargs["extra_headers"] = {
+                    "editor-version": "vscode/1.85.1",
+                    "Copilot-Integration-Id": "vscode-chat"
+                }
+            
+            response = litellm.completion(**completion_kwargs)
+            analysis_result = response.choices[0].message.content.strip()
+            
+            # JSON形式の結果をパース
+            try:
+                data = json.loads(analysis_result)
+                proposals = []
+                
+                for item in data.get("proposals", []):
+                    proposal = SquashProposal(
+                        source_commits=item.get("source_commits", []),
+                        target_commit=item.get("target_commit", ""),
+                        reason=item.get("reason", ""),
+                        suggested_message=item.get("suggested_message", "")
+                    )
+                    proposals.append(proposal)
+                
+                return True, proposals
+                
+            except json.JSONDecodeError:
+                # JSONパースが失敗した場合は空のリストを返す
+                return True, []
+                
+        except Exception as e:
+            return False, []
+    
+    def _build_japanese_analysis_prompt(self, log_output: str, commit_details: Dict[str, Dict[str, Any]]) -> str:
+        """日本語の分析プロンプトを構築する。"""
+        details_text = ""
+        for commit_id, details in commit_details.items():
+            details_text += f"\n{commit_id}: {details['message']}\n{details['diff_stat']}\n"
+        
+        return f"""
+コミット履歴を分析して、論理的に関連するコミットをスカッシュする提案を生成してください。
+
+## コミット履歴:
+{log_output}
+
+## 詳細情報:
+{details_text}
+
+## 分析基準:
+- 同一ファイルの連続した小さな修正
+- タイポ修正とそのフィックス
+- 機能追加とそのテスト
+- "fix", "wip", "tmp"等の意味のないメッセージ
+- 論理的に一つの変更であるべき分散したコミット
+
+以下のJSON形式で提案を出力してください:
+
+{{
+  "proposals": [
+    {{
+      "source_commits": ["commit-id1", "commit-id2"],
+      "target_commit": "commit-id1",
+      "reason": "統合理由",
+      "suggested_message": "提案するコミットメッセージ"
+    }}
+  ]
+}}
+
+提案がない場合は空の配列を返してください。JSON形式のみ出力してください:"""
+    
+    def _build_english_analysis_prompt(self, log_output: str, commit_details: Dict[str, Dict[str, Any]]) -> str:
+        """英語の分析プロンプトを構築する。"""
+        details_text = ""
+        for commit_id, details in commit_details.items():
+            details_text += f"\n{commit_id}: {details['message']}\n{details['diff_stat']}\n"
+        
+        return f"""
+Analyze the commit history and generate proposals to squash logically related commits.
+
+## Commit History:
+{log_output}
+
+## Details:
+{details_text}
+
+## Analysis Criteria:
+- Consecutive small modifications to the same file
+- Typo fixes and their corrections
+- Feature additions and their tests
+- Meaningless messages like "fix", "wip", "tmp"
+- Logically unified changes dispersed across commits
+
+Output proposals in the following JSON format:
+
+{{
+  "proposals": [
+    {{
+      "source_commits": ["commit-id1", "commit-id2"],
+      "target_commit": "commit-id1",
+      "reason": "Reason for squashing",
+      "suggested_message": "Proposed commit message"
+    }}
+  ]
+}}
+
+Return empty array if no proposals. Output only JSON format:"""
