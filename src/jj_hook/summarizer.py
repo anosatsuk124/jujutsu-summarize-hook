@@ -1,8 +1,10 @@
 """LiteLLMを使用したコミットメッセージの自動生成機能。"""
 
+import json
 import os
 import subprocess
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from typing import Optional, Tuple, List, Dict, Any
 
 import litellm
 from pydantic import BaseModel
