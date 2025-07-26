@@ -366,21 +366,27 @@ def pre_tool_use() -> None:
 def install_agent(is_global: bool, path: Optional[Path]) -> None:
     """jj-commit-organizerサブエージェントをClaude Code設定に追加する。"""
     
+    # 言語設定の取得
+    language = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+    
     # インストール先の決定
     if is_global and path:
-        console.print("[red]エラー: --globalと--pathは同時に指定できません[/red]")
+        error_msg = "エラー: --globalと--pathは同時に指定できません" if language == "japanese" else "Error: --global and --path cannot be used together"
+        console.print(f"[red]{error_msg}[/red]")
         sys.exit(1)
     
     if is_global:
         agents_dir = Path.home() / ".claude" / "agents"
-        install_location = "グローバル設定"
+        install_location = "グローバル設定" if language == "japanese" else "Global settings"
     else:
         target_path = path if path is not None else Path.cwd()
         agents_dir = target_path / ".claude" / "agents"
-        install_location = f"ローカル設定 ({target_path})"
+        install_location = f"ローカル設定 ({target_path})" if language == "japanese" else f"Local settings ({target_path})"
     
-    console.print(f"[blue]インストール先: {install_location}[/blue]")
-    console.print(f"[dim]ディレクトリ: {agents_dir}[/dim]")
+    location_label = "インストール先" if language == "japanese" else "Install location"
+    directory_label = "ディレクトリ" if language == "japanese" else "Directory"
+    console.print(f"[blue]{location_label}: {install_location}[/blue]")
+    console.print(f"[dim]{directory_label}: {agents_dir}[/dim]")
     
     try:
         # ディレクトリ作成
