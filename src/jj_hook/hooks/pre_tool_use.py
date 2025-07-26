@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 PreToolUse hook for creating new branches before file edits.
 
@@ -13,11 +12,8 @@ import os
 import re
 from pathlib import Path
 
-# パッケージのインポートパスを追加
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 try:
-    from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
+    from ..summarizer import JujutsuSummarizer, SummaryConfig
 except ImportError:
     # フォールバック：スクリプトが単体で実行された場合
     sys.stderr.write("警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。\n")
