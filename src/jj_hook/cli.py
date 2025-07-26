@@ -7,9 +7,8 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List
 
 import click
 import litellm
@@ -741,15 +740,6 @@ def auth(provider: str, check: bool) -> None:
                     border_style="red"
                 ))
                 sys.exit(1)
-
-
-@dataclass
-class SquashTarget:
-    """統合対象の情報"""
-    source_commits: List[str]  # 統合元コミットID
-    target_commit: str         # 統合先コミットID
-    reason: str               # 統合理由
-    suggested_message: str    # 推奨メッセージ
 
 
 def is_jj_repository(cwd: str) -> bool:
