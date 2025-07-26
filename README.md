@@ -175,21 +175,13 @@ src/jj_hook/
 
 ## Hook Details
 
-### UserPromptSubmit Hook (user_prompt_submit.py)
-- **Trigger**: When user submits prompts to Claude Code
-- **Function**: Creates new Jujutsu branches for work-related prompts
-- **Behavior**:
-  - Analyzes prompt content to determine if it's work-related
-  - Skips question-type prompts to avoid unnecessary branches
-  - Generates descriptive branch names from prompt content
-
 ### PreToolUse Hook (pre_tool_use.py)
 - **Trigger**: Before Edit, Write, MultiEdit tool calls
-- **Function**: Creates new Jujutsu branches with descriptive names
+- **Function**: Creates new Jujutsu commits with descriptive names using `jj new`
 - **Behavior**: 
   - Skips temporary files and configuration files
-  - Only creates branches when no uncommitted changes exist
-  - Generates branch descriptions based on file path and content
+  - Only creates new commits when no uncommitted changes exist
+  - Generates commit descriptions based on file path and content
 
 ### PostToolUse Hook (post_tool_use.py)
 - **Trigger**: After Edit, Write, MultiEdit tool calls
