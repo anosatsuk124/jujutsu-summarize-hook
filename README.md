@@ -140,6 +140,37 @@ jj-hook install
 jj-hook install --path /path/to/project
 ```
 
+### Commit History Organization
+
+The `organize` command uses the jj-commit-organizer sub-agent to analyze and organize your commit history:
+
+```bash
+# Analyze and organize commit history
+jj-hook organize
+
+# Preview organization without making changes
+jj-hook organize --dry-run
+
+# Automatically organize without confirmation
+jj-hook organize --auto
+
+# Limit analysis to last N commits
+jj-hook organize --limit 20
+```
+
+This command:
+1. Analyzes your commit history using `jj log`
+2. Checks for safety concerns
+3. Creates a backup bookmark
+4. Generates a prompt for the jj-commit-organizer sub-agent
+5. Provides instructions for using the sub-agent to organize commits
+
+The jj-commit-organizer sub-agent can:
+- Identify logically related commits to squash using `jj squash --from <source> --into <target> -u`
+- Suggest appropriate commit messages with the `-m` option
+- Create bookmarks for feature branches
+- Perform sequential commit integration while preserving target messages
+
 ## Development
 
 ### Development Environment Setup
