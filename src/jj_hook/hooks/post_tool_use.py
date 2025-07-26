@@ -85,7 +85,7 @@ def commit_changes(cwd: str, message: str) -> tuple[bool, str]:
     """変更をコミットする。"""
     try:
         result = subprocess.run(
-            ["jj", "commit", "-m", message],
+            ["jj", "describe", "-m", message],
             cwd=cwd,
             capture_output=True,
             text=True,
