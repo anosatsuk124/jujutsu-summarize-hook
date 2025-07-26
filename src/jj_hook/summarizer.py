@@ -13,7 +13,7 @@ class SummaryConfig(BaseModel):
     model: str = "gpt-3.5-turbo"
     max_tokens: int = 100
     temperature: float = 0.1
-    prompt_language: str = "japanese"
+    prompt_language: str = "english"
 
 
 class JujutsuSummarizer:

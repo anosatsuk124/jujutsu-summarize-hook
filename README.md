@@ -1,52 +1,52 @@
 # jujutsu-summarize-hook
 
-このリポジトリはClaude Codeと連携するJujutsu（jj）用のフックとAI機能を提供します。
+This repository provides AI-powered hooks for Claude Code that integrate with the Jujutsu version control system (jj).
 
-## 機能
+## Features
 
-- **自動コミット**: ファイル編集後にAIが生成したサマリーで自動コミット
-- **自動ブランチ作成**: ユーザープロンプトから新しいブランチを自動作成
-- **日本語対応**: 日本語でのコミットメッセージとブランチ名生成
-- **複数LLMプロバイダー対応**: OpenAI、Anthropic、ローカルモデル等をサポート
+- **Automatic Commits**: Automatically commit with AI-generated summaries after file edits
+- **Automatic Branch Creation**: Automatically create new branches from user prompts
+- **Multi-language Support**: Support for both English and Japanese commit messages and branch names
+- **Multiple LLM Providers**: Support for OpenAI, Anthropic, local models, and more
 
-## 必要条件
+## Requirements
 
-- Python 3.9以上
-- [Jujutsu (jj)](https://github.com/martinvonz/jj) 
+- Python 3.9+
+- [Jujutsu (jj)](https://github.com/martinvonz/jj)
 - [Claude Code](https://claude.ai/code)
-- [mise](https://mise.jdx.dev/) (推奨)
-- [uv](https://docs.astral.sh/uv/) (推奨)
+- [mise](https://mise.jdx.dev/) (recommended)
+- [uv](https://docs.astral.sh/uv/) (recommended)
 
-## インストール
+## Installation
 
-### 1. プロジェクトのセットアップ
+### 1. Project Setup
 
 ```bash
-# 開発環境のセットアップ
+# Set up development environment
 mise install
 uv sync
 
-# パッケージのインストール
+# Install package
 uv pip install -e .
 ```
 
-### 2. Claude Codeフックの設定
+### 2. Configure Claude Code Hooks
 
-プロジェクトディレクトリにフックをインストール:
+Install hooks in a specific project directory:
 
 ```bash
 jj-hook install --path .
 ```
 
-現在のディレクトリにインストール:
+Install hooks in the current directory:
 
 ```bash
 jj-hook install
 ```
 
-### 3. LLMプロバイダーの設定
+### 3. Configure LLM Provider
 
-環境変数でAPIキーを設定:
+Set up API keys using environment variables:
 
 ```bash
 # OpenAI
@@ -55,78 +55,85 @@ export OPENAI_API_KEY="your-api-key"
 # Anthropic
 export ANTHROPIC_API_KEY="your-api-key"
 
-# 使用するモデルの指定（オプション）
+# Specify model to use (optional)
 export JJ_HOOK_MODEL="gpt-4"
-export JJ_HOOK_LANGUAGE="japanese"
+export JJ_HOOK_LANGUAGE="english"
 ```
 
-## 使い方
+## Usage
 
-### フックが自動実行されるタイミング
+### Automatic Hook Execution
 
-1. **ファイル編集後**: Edit、Write、MultiEditツール使用後に自動コミット
-2. **プロンプト送信時**: 作業系プロンプトで新しいブランチを自動作成
+1. **After File Edits**: Automatic commits after Edit, Write, MultiEdit tool usage
+2. **On Prompt Submission**: Automatic branch creation for work-related prompts
 
-### ワークフロー例
+### Example Workflow
 
 ```bash
-# Claude Codeでプロンプトを送信
-"ユーザー認証機能を追加して"
-# → 自動的に新しいブランチが作成される
+# Submit a prompt in Claude Code
+"Add user authentication feature"
+# → A new branch is automatically created
 
-# Claude Codeでファイルを編集
-# → 編集完了後、AIが生成したメッセージで自動コミット
+# Edit files using Claude Code
+# → After editing is complete, automatic commit with AI-generated message
 ```
 
-## 設定
+## Configuration
 
-### 環境変数
+### Environment Variables
 
-| 変数名 | デフォルト値 | 説明 |
-|--------|-------------|------|
-| `JJ_HOOK_MODEL` | `gpt-3.5-turbo` | 使用するLLMモデル |
-| `JJ_HOOK_LANGUAGE` | `japanese` | プロンプト言語 |
-| `JJ_HOOK_MAX_TOKENS` | `100` | 最大トークン数 |
-| `JJ_HOOK_TEMPERATURE` | `0.1` | 生成温度 |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JJ_HOOK_MODEL` | `gpt-3.5-turbo` | LLM model to use |
+| `JJ_HOOK_LANGUAGE` | `english` | Prompt language |
+| `JJ_HOOK_MAX_TOKENS` | `100` | Maximum tokens |
+| `JJ_HOOK_TEMPERATURE` | `0.1` | Generation temperature |
 
-### サポートされるLLMプロバイダー
+### Supported LLM Providers
 
 - OpenAI (gpt-3.5-turbo, gpt-4, etc.)
 - Anthropic (claude-3-sonnet, claude-3-haiku, etc.)
-- ローカルモデル (Ollama等)
-- その他LiteLLMでサポートされる全プロバイダー
+- Local models (Ollama, etc.)
+- All providers supported by LiteLLM
 
-## 開発
+## Development
 
-### 開発環境のセットアップ
+### Development Environment Setup
 
 ```bash
-# 依存関係のインストール
+# Install dependencies
 mise install
 uv sync --dev
 
-# コードフォーマット
+# Code formatting
 uv run ruff format .
 
-# 型チェック
+# Type checking
 uv run mypy src/
 
-# テスト実行
+# Run tests
 uv run pytest
 ```
 
-### プロジェクト構造
+### Project Structure
 
 ```
 src/jj_hook/
 ├── __init__.py
-├── cli.py              # CLIエントリーポイント
-├── summarizer.py       # AI機能
-├── config.py          # 設定管理
+├── cli.py              # CLI entry point
+├── summarizer.py       # AI functionality
+├── config.py          # Configuration management
 └── hooks/
     ├── __init__.py
-    ├── post_tool_use.py     # ファイル編集後フック
-    └── user_prompt_submit.py # プロンプト送信時フック
+    ├── post_tool_use.py     # Post file-edit hook
+    └── user_prompt_submit.py # Prompt submission hook
 ```
 
+## Language Support
 
+This project supports both English and Japanese:
+
+- **English** (default): Set `JJ_HOOK_LANGUAGE=english` or leave unset
+- **Japanese**: Set `JJ_HOOK_LANGUAGE=japanese`
+
+For Japanese documentation, see [README.ja.md](README.ja.md).

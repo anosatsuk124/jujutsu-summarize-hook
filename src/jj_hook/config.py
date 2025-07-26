@@ -12,7 +12,7 @@ class Config(BaseModel):
     model: str = "gpt-3.5-turbo"
     max_tokens: int = 100
     temperature: float = 0.1
-    prompt_language: str = "japanese"
+    prompt_language: str = "english"
     
     # 環境変数からの読み込み
     @classmethod
@@ -22,5 +22,5 @@ class Config(BaseModel):
             model=os.environ.get("JJ_HOOK_MODEL", "gpt-3.5-turbo"),
             max_tokens=int(os.environ.get("JJ_HOOK_MAX_TOKENS", "100")),
             temperature=float(os.environ.get("JJ_HOOK_TEMPERATURE", "0.1")),
-            prompt_language=os.environ.get("JJ_HOOK_LANGUAGE", "japanese"),
+            prompt_language=os.environ.get("JJ_HOOK_LANGUAGE", "english"),
         )
