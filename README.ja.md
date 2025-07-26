@@ -46,17 +46,40 @@ jj-hook install
 
 ### 3. LLMプロバイダーの設定
 
+#### GitHub Copilot（推奨）
+
+GitHub CopilotはAPIキーの管理が不要で、既存のGitHubアカウントを通じたシームレスな認証が可能なため推奨です。
+
+```bash
+# GitHub Copilotをモデルに設定
+export JJ_HOOK_MODEL="github_copilot/gpt-4"
+
+# GitHub Copilotで認証（ブラウザでOAuth認証）
+jj-hook auth github-copilot
+
+# 認証状態を確認
+jj-hook auth --check
+```
+
+認証プロセスの流れ:
+1. デフォルトブラウザでGitHub OAuthページが開きます
+2. アプリケーションの認証を許可します
+3. 認証トークンが安全に保存され、今後の使用に利用されます
+
+#### その他のプロバイダー
+
 環境変数でAPIキーを設定:
 
 ```bash
 # OpenAI
 export OPENAI_API_KEY="your-api-key"
+export JJ_HOOK_MODEL="gpt-4"
 
 # Anthropic
 export ANTHROPIC_API_KEY="your-api-key"
+export JJ_HOOK_MODEL="claude-3-sonnet-20240229"
 
-# 使用するモデルの指定（オプション）
-export JJ_HOOK_MODEL="gpt-4"
+# 言語設定（オプション）
 export JJ_HOOK_LANGUAGE="japanese"
 ```
 
@@ -64,18 +87,20 @@ export JJ_HOOK_LANGUAGE="japanese"
 
 ### フックが自動実行されるタイミング
 
-1. **ファイル編集後**: Edit、Write、MultiEditツール使用後に自動コミット
-2. **プロンプト送信時**: 作業系プロンプトで新しいブランチを自動作成
+1. **プロンプト送信時**: 作業系プロンプトで新しいブランチを自動作成
+2. **ファイル編集前**: Edit、Write、MultiEditツール使用前に新しいブランチを自動作成
+3. **ファイル編集後**: Edit、Write、MultiEditツール使用後に自動コミット
 
 ### ワークフロー例
 
 ```bash
 # Claude Codeでプロンプトを送信
 "ユーザー認証機能を追加して"
-# → 自動的に新しいブランチが作成される
+# → 自動的に新しいブランチが作成される: "feat/ユーザー認証機能を追加"
 
 # Claude Codeでファイルを編集
-# → 編集完了後、AIが生成したメッセージで自動コミット
+# → 編集前: 必要に応じて追加ブランチ作成
+# → 編集後: AIが生成したメッセージで自動コミット
 ```
 
 ## 設定
