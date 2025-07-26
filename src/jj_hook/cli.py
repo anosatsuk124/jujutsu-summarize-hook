@@ -279,6 +279,34 @@ def install(path: Optional[Path]) -> None:
         sys.exit(1)
 
 
+@cli.command(name="post-tool-use")
+def post_tool_use() -> None:
+    """PostToolUse フックを実行する。"""
+    from .hooks.post_tool_use import main as post_tool_use_main
+    
+    try:
+        post_tool_use_main()
+    except SystemExit as e:
+        sys.exit(e.code)
+    except Exception as e:
+        console.print(f"[red]PostToolUse フックでエラーが発生しました: {e}[/red]")
+        sys.exit(2)
+
+
+@cli.command(name="pre-tool-use")
+def pre_tool_use() -> None:
+    """PreToolUse フックを実行する。"""
+    from .hooks.pre_tool_use import main as pre_tool_use_main
+    
+    try:
+        pre_tool_use_main()
+    except SystemExit as e:
+        sys.exit(e.code)
+    except Exception as e:
+        console.print(f"[red]PreToolUse フックでエラーが発生しました: {e}[/red]")
+        sys.exit(2)
+
+
 @cli.command()
 @click.argument("provider", type=click.Choice(["github-copilot"]), required=False, default="github-copilot")
 @click.option("--check", "-c", is_flag=True, help="認証状態のみ確認")
