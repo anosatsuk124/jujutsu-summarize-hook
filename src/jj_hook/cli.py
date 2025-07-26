@@ -4,9 +4,12 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
+from datetime import datetime
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Tuple
 
 import click
 from rich.console import Console
@@ -737,6 +740,258 @@ def auth(provider: str, check: bool) -> None:
                     border_style="red"
                 ))
                 sys.exit(1)
+
+
+@dataclass
+class SquashTarget:
+    """統合対象の情報"""
+    source_commits: List[str]  # 統合元コミットID
+    target_commit: str         # 統合先コミットID
+    reason: str               # 統合理由
+    suggested_message: str    # 推奨メッセージ
+
+
+def is_jj_repository(cwd: str) -> bool:
+    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
+    try:
+        result = subprocess.run(
+            ["jj", "root"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def get_commit_history(cwd: str, limit: int = 10) -> str:
+    """コミット履歴を取得する。"""
+    try:
+        result = subprocess.run(
+            ["jj", "log", "-r", "present(@)::heads(main)", "--limit", str(limit)],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return "履歴の取得に失敗しました"
+    except Exception:
+        return "履歴の取得中にエラーが発生しました"
+
+
+def get_diff_summary(cwd: str) -> str:
+    """差分の概要を取得する。"""
+    try:
+        result = subprocess.run(
+            ["jj", "diff", "--stat"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return "差分の取得に失敗しました"
+    except Exception:
+        return "差分の取得中にエラーが発生しました"
+
+
+def check_safety_conditions(cwd: str) -> List[str]:
+    """安全性チェック。"""
+    warnings = []
+    
+    try:
+        # 未プッシュコミット数のチェック
+        result = subprocess.run(
+            ["jj", "log", "-r", "@::heads(main) & ~heads(origin/main)", "--no-graph"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            commit_count = len([line for line in result.stdout.split('\n') if line.strip()])
+            if commit_count > 10:
+                warnings.append(f"大量のコミット({commit_count}個)が対象です")
+    except Exception:
+        warnings.append("コミット数のチェックに失敗しました")
+    
+    return warnings
+
+
+def create_backup_bookmark(cwd: str) -> Tuple[bool, str]:
+    """バックアップブックマークを作成。"""
+    try:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"backup_before_organize_{timestamp}"
+        
+        result = subprocess.run(
+            ["jj", "bookmark", "create", backup_name, "-r", "@"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode == 0:
+            return True, backup_name
+        else:
+            return False, result.stderr.strip()
+    except Exception as e:
+        return False, str(e)
+
+
+def create_organize_prompt(commit_history: str, diff_summary: str, language: str = "japanese") -> str:
+    """サブエージェント向けプロンプトを生成。"""
+    
+    base_info = {
+        "japanese": f"""
+コミット履歴を分析して適切な統合を実行してください。
+
+現在のコミット履歴:
+{commit_history}
+
+変更の概要:
+{diff_summary}
+
+統合のポイント:
+- jj squash --from <source> --into <target> -u で複数コミットを順次統合
+- -u オプションで統合先のメッセージを保持
+- 最初に -m オプションで適切な説明文を設定
+- 論理的に関連する変更は一つのコミットに統合
+- 独立した機能は分離して保持
+
+実行手順:
+1. 統合候補の特定と分析結果の報告
+2. 統合コマンドの提案
+3. ユーザー確認後の実行
+""",
+        "english": f"""
+Analyze the commit history and execute appropriate squashing.
+
+Current commit history:
+{commit_history}
+
+Change summary:
+{diff_summary}
+
+Integration points:
+- Use jj squash --from <source> --into <target> -u for sequential commit integration
+- -u option preserves target message
+- Set appropriate description with -m option first
+- Integrate logically related changes into one commit
+- Keep independent features separate
+
+Execution steps:
+1. Identify squash candidates and report analysis
+2. Propose squash commands
+3. Execute after user confirmation
+"""
+    }
+    
+    return base_info[language]
+
+
+@cli.command()
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="実際の統合は行わず、提案のみ表示"
+)
+@click.option(
+    "--auto",
+    is_flag=True,
+    help="確認なしで自動実行"
+)
+@click.option(
+    "--limit",
+    type=int,
+    default=10,
+    help="分析するコミット数の上限"
+)
+def organize(dry_run: bool, auto: bool, limit: int) -> None:
+    """jj-commit-organizerサブエージェントを使用してコミット履歴を整理する。"""
+    
+    cwd = os.getcwd()
+    language = os.environ.get("JJ_HOOK_LANGUAGE", "japanese")
+    
+    # Jujutsuリポジトリかチェック
+    if not is_jj_repository(cwd):
+        msg = "Jujutsuリポジトリではありません。" if language == "japanese" else "Not a Jujutsu repository."
+        console.print(f"[red]{msg}[/red]")
+        sys.exit(1)
+    
+    console.print(Panel(
+        Text("🤖 jj-commit-organizer サブエージェントによるコミット履歴整理", style="bold blue"),
+        title="コミット履歴整理",
+        border_style="blue"
+    ))
+    
+    try:
+        # 安全性チェック
+        with console.status("[cyan]安全性をチェック中...", spinner="dots"):
+            warnings = check_safety_conditions(cwd)
+        
+        if warnings:
+            console.print("[yellow]⚠️  警告:[/yellow]")
+            for warning in warnings:
+                console.print(f"  • {warning}")
+            
+            if not auto and not Confirm.ask("続行しますか？"):
+                console.print("[dim]操作をキャンセルしました[/dim]")
+                return
+        
+        # バックアップ作成
+        if not dry_run:
+            with console.status("[cyan]バックアップを作成中...", spinner="dots"):
+                backup_success, backup_name = create_backup_bookmark(cwd)
+            
+            if backup_success:
+                console.print(f"[dim]✅ バックアップ作成: {backup_name}[/dim]")
+            else:
+                console.print(f"[yellow]⚠️  バックアップ作成に失敗: {backup_name}[/yellow]")
+        
+        # コミット履歴分析
+        with console.status("[cyan]コミット履歴を分析中...", spinner="dots"):
+            history = get_commit_history(cwd, limit)
+            diff_summary = get_diff_summary(cwd)
+        
+        # プロンプト生成
+        prompt = create_organize_prompt(history, diff_summary, language)
+        
+        if dry_run:
+            prompt += "\n--dry-run モードで実行（実際の変更は行わない）"
+        
+        console.print(Panel(
+            "📊 分析完了\n"
+            f"• 分析対象: {limit}個のコミット\n"
+            f"• 安全性警告: {len(warnings)}個\n"
+            f"• バックアップ: {'作成済み' if not dry_run and backup_success else 'スキップ'}",
+            title="分析結果",
+            border_style="green"
+        ))
+        
+        # Claude Code環境での実行を想定したメッセージ
+        console.print("\n[blue]次の手順でサブエージェントを呼び出してください:[/blue]")
+        console.print("[dim]Claude Code で以下のプロンプトを実行:[/dim]\n")
+        
+        console.print(Panel(
+            f"jj-commit-organizerサブエージェントを使用してコミット履歴を整理してください。\n\n{prompt}",
+            title="サブエージェント用プロンプト",
+            border_style="cyan"
+        ))
+        
+        console.print("\n[green]✅ 整理準備が完了しました[/green]")
+        
+    except Exception as e:
+        console.print(f"[red]エラーが発生しました: {e}[/red]")
+        sys.exit(1)
 
 
 def main() -> None:
