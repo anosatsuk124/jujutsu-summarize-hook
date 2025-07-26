@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 
 import click
+import litellm
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
