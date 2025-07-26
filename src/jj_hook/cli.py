@@ -48,7 +48,7 @@ def create_hook_settings(target_path: Path) -> dict:
     
     # 絶対パスでフックスクリプトを参照
     post_tool_use_script = hooks_dir / "post_tool_use.py"
-    user_prompt_submit_script = hooks_dir / "user_prompt_submit.py"
+    pre_tool_use_script = hooks_dir / "pre_tool_use.py"
     
     settings = {
         "hooks": {
@@ -64,12 +64,13 @@ def create_hook_settings(target_path: Path) -> dict:
                     ]
                 }
             ],
-            "UserPromptSubmit": [
+            "PreToolUse": [
                 {
+                    "matcher": "Edit|Write|MultiEdit",
                     "hooks": [
                         {
                             "type": "command", 
-                            "command": f"python {user_prompt_submit_script}",
+                            "command": f"python {pre_tool_use_script}",
                             "timeout": 15
                         }
                     ]
@@ -150,7 +151,7 @@ def install(path: Optional[Path]) -> None:
         
         # settings.jsonのhook pathを相対パスに更新
         hook_settings["hooks"]["PostToolUse"][0]["hooks"][0]["command"] = "$CLAUDE_PROJECT_DIR/.claude/hooks/post_tool_use.py"
-        hook_settings["hooks"]["UserPromptSubmit"][0]["hooks"][0]["command"] = "$CLAUDE_PROJECT_DIR/.claude/hooks/user_prompt_submit.py"
+        hook_settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = "$CLAUDE_PROJECT_DIR/.claude/hooks/pre_tool_use.py"
         
         merged_settings = merge_settings(existing_settings, hook_settings)
         
@@ -159,7 +160,7 @@ def install(path: Optional[Path]) -> None:
             json.dump(merged_settings, f, indent=2, ensure_ascii=False)
         
         console.print(Panel(
-            Text("インストールが完了しました！\n\n以下の機能が有効になりました:\n• ファイル編集後の自動コミット\n• プロンプト送信時の新ブランチ作成", 
+            Text("インストールが完了しました！\n\n以下の機能が有効になりました:\n• ファイル編集前の新ブランチ作成\n• ファイル編集後の自動コミット", 
                  style="bold green"),
             title="🎉 成功",
             border_style="green"
