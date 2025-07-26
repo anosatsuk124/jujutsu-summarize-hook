@@ -146,6 +146,37 @@ jj-hook install --global
 jj-hook install --dry-run
 ```
 
+### コミット履歴の整理
+
+`organize` コマンドは jj-commit-organizer サブエージェントを使用してコミット履歴を分析・整理します：
+
+```bash
+# コミット履歴を分析・整理
+jj-hook organize
+
+# 変更を加えずにプレビュー
+jj-hook organize --dry-run
+
+# 確認なしに自動整理
+jj-hook organize --auto
+
+# 最新N個のコミットに分析を限定
+jj-hook organize --limit 20
+```
+
+このコマンドの機能：
+1. `jj log` を使用してコミット履歴を分析
+2. 安全性チェックを実行
+3. バックアップブックマークを作成
+4. jj-commit-organizer サブエージェント用のプロンプトを生成
+5. サブエージェントを使用してコミットを整理する手順を提供
+
+jj-commit-organizer サブエージェントの機能：
+- `jj squash --from <source> --into <target> -u` を使用して論理的に関連するコミットを統合
+- `-m` オプションで適切なコミットメッセージを提案
+- 機能ブランチ用のブックマークを作成
+- 統合先メッセージを保持しながら順次コミット統合を実行
+
 ### フック手動実行
 
 ```bash
