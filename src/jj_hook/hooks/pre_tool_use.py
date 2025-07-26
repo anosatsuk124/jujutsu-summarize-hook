@@ -1,8 +1,8 @@
 """
-PreToolUse hook for creating new branches before file edits.
+PreToolUse hook for creating new revisions before file edits.
 
 This hook is triggered before Edit, Write, or MultiEdit tool calls and
-automatically creates a new Jujutsu branch with a descriptive name based on the intended changes.
+automatically creates a new Jujutsu revision with a descriptive name based on the intended changes.
 """
 
 import json
@@ -34,12 +34,12 @@ def is_jj_repository(cwd: str) -> bool:
         return False
 
 
-def create_new_branch(cwd: str, branch_description: str) -> tuple[bool, str]:
-    """新しいブランチを作成する。"""
+def create_new_revision(cwd: str, revision_description: str) -> tuple[bool, str]:
+    """新しいリビジョンを作成する。"""
     try:
-        # jj new -m でブランチ作成とコミットメッセージ設定を同時に行う
+        # jj new -m でリビジョン作成とコミットメッセージ設定を同時に行う
         result = subprocess.run(
-            ["jj", "new", "-m", branch_description],
+            ["jj", "new", "-m", revision_description],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -53,8 +53,8 @@ def create_new_branch(cwd: str, branch_description: str) -> tuple[bool, str]:
         return False, str(e)
 
 
-def should_create_branch_for_tool(tool_name: str, tool_input: dict) -> bool:
-    """ツールの種類と入力から新しいブランチを作成すべきかどうか判断する。"""
+def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
+    """ツールの種類と入力から新しいリビジョンを作成すべきかどうか判断する。"""
     # 対象ツール以外はスキップ
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         return False
@@ -86,7 +86,7 @@ def should_create_branch_for_tool(tool_name: str, tool_input: dict) -> bool:
     return True
 
 
-def generate_branch_description_from_tool(tool_name: str, tool_input: dict) -> str:
+def generate_revision_description_from_tool(tool_name: str, tool_input: dict) -> str:
     """ツール情報から作業内容の説明を生成する。"""
     file_path = tool_input.get("file_path", "")
     
@@ -159,25 +159,25 @@ def main() -> None:
         sys.stderr.write("Jujutsuリポジトリではありません。スキップします。\n")
         sys.exit(0)
     
-    # 新しいブランチを作成すべきかチェック
-    if not should_create_branch_for_tool(tool_name, tool_input):
-        sys.stdout.write("一時ファイルまたは設定ファイルのため、新しいブランチは作成しません。\n")
+    # 新しいリビジョンを作成すべきかチェック
+    if not should_create_revision_for_tool(tool_name, tool_input):
+        sys.stdout.write("一時ファイルのため、新しいリビジョンは作成しません。\n")
         sys.exit(0)
     
     
-    # ブランチの説明を生成
-    branch_description = generate_branch_description_from_tool(tool_name, tool_input)
+    # リビジョンの説明を生成
+    revision_description = generate_revision_description_from_tool(tool_name, tool_input)
     
-    # ブランチ作成実行
-    branch_success, branch_result = create_new_branch(cwd, branch_description)
+    # リビジョン作成実行
+    revision_success, revision_result = create_new_revision(cwd, revision_description)
     
-    if branch_success:
-        sys.stdout.write(f"🌟 新しいブランチを作成しました: {branch_description}\n")
-        if branch_result:
-            sys.stdout.write(f"詳細: {branch_result}\n")
+    if revision_success:
+        sys.stdout.write(f"🌟 新しいリビジョンを作成しました: {revision_description}\n")
+        if revision_result:
+            sys.stdout.write(f"詳細: {revision_result}\n")
     else:
-        # ブランチ作成に失敗してもエラーにはしない（警告のみ）
-        sys.stderr.write(f"⚠️  ブランチ作成に失敗しました: {branch_result}\n")
+        # リビジョン作成に失敗してもエラーにはしない（警告のみ）
+        sys.stderr.write(f"⚠️  リビジョン作成に失敗しました: {revision_result}\n")
         # 通常は exit(0) でツール処理を続行
         sys.exit(0)
 
