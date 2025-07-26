@@ -18,13 +18,6 @@ try:
     from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
 except ImportError:
     from ..summarizer import JujutsuSummarizer, SummaryConfig
-    IMPORT_SUCCESS = True
-    IMPORT_ERROR = None
-except ImportError as e:
-    # フォールバック：スクリプトが単体で実行された場合
-    msg = "警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。" if LANGUAGE == "japanese" else "Warning: Could not import jj_hook package. Running in standalone mode."
-    sys.stderr.write(f"{msg}\n")
-    
     def create_fallback_summary(cwd: str) -> str:
         """フォールバック用の簡単なサマリー生成。"""
         try:
@@ -125,23 +118,41 @@ def main() -> None:
         sys.exit(0)
     
     # サマリーを生成
-    try:
-        summarizer = JujutsuSummarizer()
-        success, summary = summarizer.generate_commit_summary(cwd)
-        
-        if not success:
-            # サマリー生成に失敗した場合
-            error_msg = f"サマリー生成に失敗しました: {summary}" if LANGUAGE == "japanese" else f"Summary generation failed: {summary}"
-            sys.stderr.write(f"{error_msg}\n")
-            summary = "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
-            
-    except NameError:
-        # フォールバックモード
+    if not IMPORT_SUCCESS:
+        # インポートが失敗していた場合はフォールバックモード
+        debug_msg = f"デバッグ: インポートエラーのためフォールバック実行 ({IMPORT_ERROR})" if LANGUAGE == "japanese" else f"Debug: Fallback due to import error ({IMPORT_ERROR})"
+        sys.stderr.write(f"{debug_msg}\n")
         summary = create_fallback_summary(cwd)
         if not summary:
             msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
             sys.stdout.write(f"{msg}\n")
             sys.exit(0)
+    else:
+        try:
+            # 環境変数をデバッグ出力
+            model = os.environ.get("JJ_HOOK_MODEL", "gpt-3.5-turbo")
+            debug_msg = f"デバッグ: 使用モデル = {model}" if LANGUAGE == "japanese" else f"Debug: Using model = {model}"
+            sys.stderr.write(f"{debug_msg}\n")
+            
+            summarizer = JujutsuSummarizer()
+            success, summary = summarizer.generate_commit_summary(cwd)
+            
+            if not success:
+                # サマリー生成に失敗した場合
+                error_msg = f"サマリー生成に失敗しました: {summary}" if LANGUAGE == "japanese" else f"Summary generation failed: {summary}"
+                sys.stderr.write(f"{error_msg}\n")
+                summary = "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
+                
+        except Exception as e:
+            # すべての例外をキャッチしてデバッグ情報を出力
+            error_msg = f"予期しないエラー: {type(e).__name__}: {str(e)}" if LANGUAGE == "japanese" else f"Unexpected error: {type(e).__name__}: {str(e)}"
+            sys.stderr.write(f"{error_msg}\n")
+            # フォールバックモード
+            summary = create_fallback_summary(cwd)
+            if not summary:
+                msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                sys.stdout.write(f"{msg}\n")
+                sys.exit(0)
     
     # コミット実行
     commit_success, commit_result = commit_changes(cwd, summary)
