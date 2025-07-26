@@ -12,6 +12,9 @@ import subprocess
 import os
 from pathlib import Path
 
+# 言語設定の取得
+LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+
 # パッケージのインポートパスを追加
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -19,7 +22,8 @@ try:
     from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
 except ImportError:
     # フォールバック：スクリプトが単体で実行された場合
-    sys.stderr.write("警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。\n")
+    msg = "警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。" if LANGUAGE == "japanese" else "Warning: Could not import jj_hook package. Running in standalone mode."
+    sys.stderr.write(f"{msg}\n")
     
     def create_fallback_summary(cwd: str) -> str:
         """フォールバック用の簡単なサマリー生成。"""
@@ -32,7 +36,7 @@ except ImportError:
                 timeout=10
             )
             if result.returncode == 0 and "No changes" not in result.stdout:
-                return "ファイルを編集"
+                return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
             else:
                 return ""
         except Exception:
@@ -96,7 +100,8 @@ def main() -> None:
         # stdinからJSONデータを読み込み
         input_data = json.load(sys.stdin)
     except json.JSONDecodeError as e:
-        sys.stderr.write(f"JSONデコードエラー: {e}\n")
+        msg = f"JSONデコードエラー: {e}" if LANGUAGE == "japanese" else f"JSON decode error: {e}"
+        sys.stderr.write(f"{msg}\n")
         sys.exit(1)
     
     # フック情報の取得
@@ -109,12 +114,14 @@ def main() -> None:
     
     # Jujutsuリポジトリかチェック
     if not is_jj_repository(cwd):
-        sys.stderr.write("Jujutsuリポジトリではありません。スキップします。\n")
+        msg = "Jujutsuリポジトリではありません。スキップします。" if LANGUAGE == "japanese" else "Not a Jujutsu repository. Skipping."
+        sys.stderr.write(f"{msg}\n")
         sys.exit(0)
     
     # 変更があるかチェック
     if not has_uncommitted_changes(cwd):
-        sys.stdout.write("変更がありません。コミットをスキップします。\n")
+        msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+        sys.stdout.write(f"{msg}\n")
         sys.exit(0)
     
     # サマリーを生成
@@ -124,25 +131,29 @@ def main() -> None:
         
         if not success:
             # サマリー生成に失敗した場合
-            sys.stderr.write(f"サマリー生成に失敗しました: {summary}\n")
-            summary = "ファイルを編集"
+            error_msg = f"サマリー生成に失敗しました: {summary}" if LANGUAGE == "japanese" else f"Summary generation failed: {summary}"
+            sys.stderr.write(f"{error_msg}\n")
+            summary = "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
             
     except NameError:
         # フォールバックモード
         summary = create_fallback_summary(cwd)
         if not summary:
-            sys.stdout.write("変更がありません。コミットをスキップします。\n")
+            msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+            sys.stdout.write(f"{msg}\n")
             sys.exit(0)
     
     # コミット実行
     commit_success, commit_result = commit_changes(cwd, summary)
     
     if commit_success:
-        sys.stdout.write(f"✅ 自動コミット完了: {summary}\n")
+        success_msg = f"✅ 自動コミット完了: {summary}" if LANGUAGE == "japanese" else f"✅ Auto-commit completed: {summary}"
+        sys.stdout.write(f"{success_msg}\n")
         if commit_result:
             sys.stdout.write(f"詳細: {commit_result}\n")
     else:
-        sys.stderr.write(f"❌ コミットに失敗しました: {commit_result}\n")
+        error_msg = f"❌ コミットに失敗しました: {commit_result}" if LANGUAGE == "japanese" else f"❌ Commit failed: {commit_result}"
+        sys.stderr.write(f"{error_msg}\n")
         # exit code 2 で Claude にエラーを報告
         sys.exit(2)
 

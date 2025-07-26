@@ -87,12 +87,21 @@ class JujutsuSummarizer:
         
         try:
             # LiteLLMでサマリーを生成
-            response = litellm.completion(
-                model=self.config.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature
-            )
+            completion_kwargs = {
+                "model": self.config.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": self.config.max_tokens,
+                "temperature": self.config.temperature
+            }
+            
+            # GitHub Copilot使用時のヘッダーを追加
+            if self.config.model.startswith("github_copilot/"):
+                completion_kwargs["extra_headers"] = {
+                    "editor-version": "vscode/1.85.1",
+                    "Copilot-Integration-Id": "vscode-chat"
+                }
+            
+            response = litellm.completion(**completion_kwargs)
             
             summary = response.choices[0].message.content.strip()
             
@@ -105,7 +114,8 @@ class JujutsuSummarizer:
             return True, summary
             
         except Exception as e:
-            return False, f"サマリー生成エラー: {str(e)}"
+            error_msg = f"サマリー生成エラー: {str(e)}" if self.config.prompt_language == "japanese" else f"Summary generation error: {str(e)}"
+            return False, error_msg
     
     def _build_japanese_prompt(self, status: str, diff: str) -> str:
         """日本語のプロンプトを構築する。"""
@@ -190,15 +200,24 @@ Examples:
 
 Output only the branch name:"""
             
-            response = litellm.completion(
-                model=self.config.model,
-                messages=[
+            completion_kwargs = {
+                "model": self.config.model,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=30,
-                temperature=0.1
-            )
+                "max_tokens": 30,
+                "temperature": 0.1
+            }
+            
+            # GitHub Copilot使用時のヘッダーを追加
+            if self.config.model.startswith("github_copilot/"):
+                completion_kwargs["extra_headers"] = {
+                    "editor-version": "vscode/1.85.1",
+                    "Copilot-Integration-Id": "vscode-chat"
+                }
+            
+            response = litellm.completion(**completion_kwargs)
             
             branch_name = response.choices[0].message.content.strip()
             
@@ -212,4 +231,5 @@ Output only the branch name:"""
             return True, branch_name
             
         except Exception as e:
-            return False, f"ブランチ名生成エラー: {str(e)}"
+            error_msg = f"ブランチ名生成エラー: {str(e)}" if self.config.prompt_language == "japanese" else f"Branch name generation error: {str(e)}"
+            return False, error_msg
