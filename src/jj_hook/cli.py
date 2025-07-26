@@ -767,42 +767,6 @@ def is_jj_repository(cwd: str) -> bool:
         return False
 
 
-def get_commit_history(cwd: str, limit: int = 10) -> str:
-    """コミット履歴を取得する。"""
-    try:
-        result = subprocess.run(
-            ["jj", "log", "-r", "present(@)::heads(main)", "--limit", str(limit)],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            return "履歴の取得に失敗しました"
-    except Exception:
-        return "履歴の取得中にエラーが発生しました"
-
-
-def get_diff_summary(cwd: str) -> str:
-    """差分の概要を取得する。"""
-    try:
-        result = subprocess.run(
-            ["jj", "diff", "--stat"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            return "差分の取得に失敗しました"
-    except Exception:
-        return "差分の取得中にエラーが発生しました"
-
-
 def check_safety_conditions(cwd: str) -> List[str]:
     """安全性チェック。"""
     warnings = []
@@ -824,79 +788,6 @@ def check_safety_conditions(cwd: str) -> List[str]:
         warnings.append("コミット数のチェックに失敗しました")
     
     return warnings
-
-
-def create_backup_bookmark(cwd: str) -> Tuple[bool, str]:
-    """バックアップブックマークを作成。"""
-    try:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_name = f"backup_before_organize_{timestamp}"
-        
-        result = subprocess.run(
-            ["jj", "bookmark", "create", backup_name, "-r", "@"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        
-        if result.returncode == 0:
-            return True, backup_name
-        else:
-            return False, result.stderr.strip()
-    except Exception as e:
-        return False, str(e)
-
-
-def create_organize_prompt(commit_history: str, diff_summary: str, language: str = "japanese") -> str:
-    """サブエージェント向けプロンプトを生成。"""
-    
-    base_info = {
-        "japanese": f"""
-コミット履歴を分析して適切な統合を実行してください。
-
-現在のコミット履歴:
-{commit_history}
-
-変更の概要:
-{diff_summary}
-
-統合のポイント:
-- jj squash --from <source> --into <target> -u で複数コミットを順次統合
-- -u オプションで統合先のメッセージを保持
-- 最初に -m オプションで適切な説明文を設定
-- 論理的に関連する変更は一つのコミットに統合
-- 独立した機能は分離して保持
-
-実行手順:
-1. 統合候補の特定と分析結果の報告
-2. 統合コマンドの提案
-3. ユーザー確認後の実行
-""",
-        "english": f"""
-Analyze the commit history and execute appropriate squashing.
-
-Current commit history:
-{commit_history}
-
-Change summary:
-{diff_summary}
-
-Integration points:
-- Use jj squash --from <source> --into <target> -u for sequential commit integration
-- -u option preserves target message
-- Set appropriate description with -m option first
-- Integrate logically related changes into one commit
-- Keep independent features separate
-
-Execution steps:
-1. Identify squash candidates and report analysis
-2. Propose squash commands
-3. Execute after user confirmation
-"""
-    }
-    
-    return base_info[language]
 
 
 @cli.command()
