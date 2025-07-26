@@ -88,19 +88,14 @@ export JJ_HOOK_LANGUAGE="japanese"
 
 ### フックが自動実行されるタイミング
 
-1. **プロンプト送信時**: 作業系プロンプトで新しいブランチを自動作成
-2. **ファイル編集前**: Edit、Write、MultiEditツール使用前に新しいブランチを自動作成
-3. **ファイル編集後**: Edit、Write、MultiEditツール使用後に自動コミット
+1. **ファイル編集前**: Edit、Write、MultiEditツール使用前に新しいリビジョンを自動作成
+2. **ファイル編集後**: Edit、Write、MultiEditツール使用後に自動コミット
 
 ### ワークフロー例
 
 ```bash
-# Claude Codeでプロンプトを送信
-"ユーザー認証機能を追加して"
-# → 自動的に新しいブランチが作成される: "feat/ユーザー認証機能を追加"
-
 # Claude Codeでファイルを編集
-# → 編集前: 必要に応じて追加ブランチ作成
+# → 編集前: 新しいリビジョンを自動作成 (jj new -m "ファイル名を修正")
 # → 編集後: AIが生成したメッセージで自動コミット
 ```
 
@@ -117,6 +112,7 @@ export JJ_HOOK_LANGUAGE="japanese"
 
 ### サポートされるLLMプロバイダー
 
+- **GitHub Copilot** (github_copilot/gpt-4) - 推奨
 - OpenAI (gpt-3.5-turbo, gpt-4, etc.)
 - Anthropic (claude-3-sonnet, claude-3-haiku, etc.)
 - ローカルモデル (Ollama等)
