@@ -233,57 +233,89 @@ def cli() -> None:
 
 @cli.command()
 @click.option(
+    "--global", "is_global",
+    is_flag=True,
+    help="グローバル設定（~/.claude/settings.json）にインストール"
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="実際の変更は行わず、変更内容のプレビューのみ表示"
+)
+@click.option(
     "--path", 
     "-p", 
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
     default=None,
-    help="インストール先のディレクトリパス（指定しない場合は現在のディレクトリ）"
+    help="インストール先のディレクトリパス（--globalと併用不可）"
 )
-def install(path: Optional[Path]) -> None:
-    """指定されたディレクトリにjj-hookを設定する。"""
+def install(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
+    """jj-hookをClaude Code設定に追加する。"""
     
-    # ターゲットパスの決定
-    target_path = path if path is not None else Path.cwd()
-    console.print(f"[green]フックをインストールします: {target_path}[/green]")
+    # 設定ファイルパスの決定
+    if is_global and path:
+        console.print("[red]エラー: --globalと--pathは同時に指定できません[/red]")
+        sys.exit(1)
     
-    try:
-        # .claudeディレクトリの作成
+    if is_global:
+        settings_file = Path.home() / ".claude" / "settings.json"
+        install_location = "グローバル設定"
+    else:
+        target_path = path if path is not None else Path.cwd()
         claude_dir = create_claude_settings_dir(target_path)
         settings_file = claude_dir / "settings.json"
-        
-        # フックスクリプトのコピー
-        hooks_dir = get_project_root()
-        target_hooks_dir = claude_dir / "hooks"
-        
-        if target_hooks_dir.exists():
-            shutil.rmtree(target_hooks_dir)
-        
-        shutil.copytree(hooks_dir, target_hooks_dir)
-        console.print(f"[green]フックスクリプトをコピーしました: {target_hooks_dir}[/green]")
-        
-        # 設定ファイルの更新
+        install_location = f"ローカル設定 ({target_path})"
+    
+    console.print(f"[blue]インストール先: {install_location}[/blue]")
+    console.print(f"[dim]設定ファイル: {settings_file}[/dim]")
+    
+    try:
+        # 既存設定の読み込み
         existing_settings = get_existing_settings(settings_file)
-        hook_settings = create_hook_settings(target_path)
         
-        # settings.jsonのhook pathを相対パスに更新
-        hook_settings["hooks"]["PostToolUse"][0]["hooks"][0]["command"] = "$CLAUDE_PROJECT_DIR/.claude/hooks/post_tool_use.py"
-        hook_settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"] = "$CLAUDE_PROJECT_DIR/.claude/hooks/pre_tool_use.py"
+        # 新しいフック設定を生成
+        hook_settings = create_hook_settings()
         
+        # 設定をマージ
         merged_settings = merge_settings(existing_settings, hook_settings)
+        
+        if dry_run:
+            # プレビューモード
+            console.print("\n[yellow]変更プレビュー:[/yellow]")
+            console.print(json.dumps(hook_settings, indent=2, ensure_ascii=False))
+            console.print(f"\n[dim]実際に変更するには --dry-run オプションを外して実行してください[/dim]")
+            return
+        
+        # バックアップ作成
+        backup_file = backup_settings_file(settings_file)
+        if backup_file:
+            console.print(f"[dim]バックアップ作成: {backup_file}[/dim]")
+        
+        # 設定ファイルの親ディレクトリを作成（グローバル設定の場合）
+        settings_file.parent.mkdir(parents=True, exist_ok=True)
         
         # 設定ファイルの書き込み
         with open(settings_file, "w", encoding="utf-8") as f:
             json.dump(merged_settings, f, indent=2, ensure_ascii=False)
         
         console.print(Panel(
-            Text("インストールが完了しました！\n\n以下の機能が有効になりました:\n• ファイル編集前の新ブランチ作成\n• ファイル編集後の自動コミット", 
+            Text("jj-hook のインストールが完了しました！\n\n"
+                 "有効になった機能:\n"
+                 "• ファイル編集前の新ブランチ作成 (PreToolUse)\n"
+                 "• ファイル編集後の自動コミット (PostToolUse)\n\n"
+                 "コマンド:\n"
+                 "• jj-hook post-tool-use\n"
+                 "• jj-hook pre-tool-use", 
                  style="bold green"),
-            title="🎉 成功",
+            title="🎉 インストール成功",
             border_style="green"
         ))
         
     except OSError as e:
         console.print(f"[red]エラー: ファイル操作に失敗しました: {e}[/red]")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        console.print(f"[red]エラー: JSON処理に失敗しました: {e}[/red]")
         sys.exit(1)
     except Exception as e:
         console.print(f"[red]予期しないエラーが発生しました: {e}[/red]")
