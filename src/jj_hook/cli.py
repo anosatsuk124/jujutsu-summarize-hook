@@ -486,7 +486,8 @@ jj bookmark create <feature-name> -r <commit-id>
 
 ## コミュニケーション
 
-### 日本語での報告
+### 言語設定に応じた報告
+環境変数 JJ_HOOK_LANGUAGE の設定（現在: japanese）に従って日本語で報告します。
 ```
 📊 **コミット履歴分析結果**
 
