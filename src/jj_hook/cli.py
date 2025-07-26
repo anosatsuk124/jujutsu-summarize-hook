@@ -800,8 +800,6 @@ def get_diff_summary(cwd: str) -> str:
             return "差分の取得に失敗しました"
     except Exception:
         return "差分の取得中にエラーが発生しました"
-    except Exception:
-        return "差分の取得中にエラーが発生しました"
 
 
 def check_safety_conditions(cwd: str) -> List[str]:
