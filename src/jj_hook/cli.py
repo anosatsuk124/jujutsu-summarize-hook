@@ -350,6 +350,195 @@ def pre_tool_use() -> None:
         sys.exit(2)
 
 
+@cli.command(name="install-agent")
+@click.option(
+    "--global", "is_global",
+    is_flag=True,
+    help="グローバル設定（~/.claude/agents/）にインストール"
+)
+@click.option(
+    "--path", 
+    "-p", 
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+    help="インストール先のディレクトリパス（--globalと併用不可）"
+)
+def install_agent(is_global: bool, path: Optional[Path]) -> None:
+    """jj-commit-organizerサブエージェントをClaude Code設定に追加する。"""
+    
+    # インストール先の決定
+    if is_global and path:
+        console.print("[red]エラー: --globalと--pathは同時に指定できません[/red]")
+        sys.exit(1)
+    
+    if is_global:
+        agents_dir = Path.home() / ".claude" / "agents"
+        install_location = "グローバル設定"
+    else:
+        target_path = path if path is not None else Path.cwd()
+        agents_dir = target_path / ".claude" / "agents"
+        install_location = f"ローカル設定 ({target_path})"
+    
+    console.print(f"[blue]インストール先: {install_location}[/blue]")
+    console.print(f"[dim]ディレクトリ: {agents_dir}[/dim]")
+    
+    try:
+        # ディレクトリ作成
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        
+        # サブエージェント定義ファイルのパス
+        agent_file = agents_dir / "jj-commit-organizer.md"
+        
+        # 既存ファイルの確認
+        if agent_file.exists():
+            if not Confirm.ask(f"[yellow]ファイル {agent_file} が既に存在します。上書きしますか？[/yellow]"):
+                console.print("[dim]インストールをキャンセルしました[/dim]")
+                return
+        
+        # サブエージェント定義の内容
+        agent_content = """---
+name: jj-commit-organizer
+description: jj log や jj diff を観察し、適切なコミット単位をjj squash や jj bookmark createなどを使って整形する専用エキスパート。コミット履歴の論理的整理とリファクタリングをプロアクティブに実行する。
+tools: Bash, Read, Grep, Glob
+---
+
+あなたはJujutsu VCS（jj）の専門家で、コミット履歴の整理とリファクタリングを担当します。
+
+## 役割と責任
+
+### 主要機能
+1. **コミット履歴の分析**: `jj log` でコミット履歴を確認し、問題を特定
+2. **差分の詳細調査**: `jj diff` で各コミットの変更内容を分析
+3. **論理的整理の提案**: 関連するコミットをまとめ、適切な単位に再編成
+4. **自動整形の実行**: `jj squash` や `jj bookmark create` を使用した実際の整理
+
+### 分析対象
+- 同一ファイルへの連続した小さな修正
+- 関連する機能の複数回に分かれたコミット
+- 意味のないコミットメッセージ（"fix", "wip", "tmp"など）
+- タイポ修正やフォーマット変更の分離されたコミット
+- 論理的に一つの変更であるべき分散したコミット
+
+### 整理方針
+- **機能単位**: 一つの機能や修正は一つのコミットに
+- **論理的一貫性**: 関連する変更は同じコミットに統合
+- **明確なメッセージ**: 各コミットの目的が明確になるように
+- **レビュー可能性**: 変更が理解しやすい適切なサイズに
+
+## 実行手順
+
+### 1. 現状分析
+```bash
+# コミット履歴の確認（最新20件）
+jj log -r 'present(@)::heads(trunk)' --limit 20
+
+# 未プッシュのコミット確認
+jj log -r '@::heads(trunk) & ~heads(main)'
+```
+
+### 2. 差分詳細調査
+```bash
+# 特定のコミットの変更内容
+jj diff -r <commit-id>
+
+# 複数コミット間の累積差分
+jj diff -r <start>..<end>
+
+# ファイル単位での変更履歴
+jj log -p <file-path>
+```
+
+### 3. 整理実行
+```bash
+# 複数コミットをスカッシュ
+jj squash -r <commit-range>
+
+# コミットメッセージの編集
+jj describe -r <commit-id> -m "新しいメッセージ"
+
+# 新しいブックマークの作成
+jj bookmark create <feature-name> -r <commit-id>
+```
+
+## 判断基準
+
+### 統合すべきコミット
+- 同一ファイルの連続修正
+- タイポ修正とそのフィックス
+- 機能追加とそのテスト
+- ドキュメントと実装の対応関係
+- デバッグ用コードの追加と削除
+
+### 分離すべき変更
+- 複数の独立した機能
+- リファクタリングと新機能
+- 設定変更と実装変更
+- 依存関係更新と機能修正
+
+## コミュニケーション
+
+### 日本語での報告
+```
+📊 **コミット履歴分析結果**
+
+検出した問題:
+- feat: ユーザー登録機能 (3個の小さなコミットに分散)
+- fix: タイポ修正 (本体変更と別コミット)
+- docs: README更新 (機能追加と同時に行うべき)
+
+提案する整理:
+1. コミット A, B, C を統合 → "feat: ユーザー登録機能の実装"
+2. コミット D, E を統合 → "fix: フォーム検証エラーメッセージ改善"
+3. コミット F は独立して保持
+
+実行予定のコマンド:
+jj squash -r A::C
+jj describe -r A -m "feat: ユーザー登録機能の実装"
+```
+
+### 実行確認
+整理を実行する前に必ず確認を求め、承認後に実行します。危険な操作（HEAD^を超える大幅な履歴変更）は特に慎重に行います。
+
+## ベストプラクティス
+
+### セーフティ
+- 整理前にバックアップブランチ作成
+- 段階的な整理（一度に大量の変更を避ける）
+- プッシュ済みコミットには触らない
+
+### 品質向上
+- 意味のあるコミットメッセージの提案
+- Conventional Commits形式の適用
+- 変更内容と目的の明確化
+
+常にコミット履歴の品質向上を目指し、将来のメンテナンスや協働を考慮した整理を行います。"""
+        
+        # ファイル書き込み
+        with open(agent_file, "w", encoding="utf-8") as f:
+            f.write(agent_content)
+        
+        console.print(Panel(
+            Text("🤖 jj-commit-organizer サブエージェントのインストールが完了しました！\n\n"
+                 "使用方法:\n"
+                 "• Claude Code で「jj-commit-organizer サブエージェントを使ってコミット履歴を整理して」\n"
+                 "• 「コミット履歴を確認して適切に整理してください」\n\n"
+                 "機能:\n"
+                 "• jj log と jj diff による履歴分析\n"
+                 "• jj squash や jj bookmark create による自動整理\n"
+                 "• 日本語での分析結果報告", 
+                 style="bold green"),
+            title="🎉 サブエージェント インストール成功",
+            border_style="green"
+        ))
+        
+    except OSError as e:
+        console.print(f"[red]エラー: ファイル操作に失敗しました: {e}[/red]")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"[red]予期しないエラーが発生しました: {e}[/red]")
+        sys.exit(1)
+
+
 @cli.command()
 @click.argument("provider", type=click.Choice(["github-copilot"]), required=False, default="github-copilot")
 @click.option("--check", "-c", is_flag=True, help="認証状態のみ確認")
