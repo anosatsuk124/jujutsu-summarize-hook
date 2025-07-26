@@ -147,14 +147,8 @@ def get_existing_settings(settings_file: Path) -> dict:
     return {}
 
 
-def create_hook_settings(target_path: Path) -> dict:
+def create_hook_settings() -> dict:
     """フック設定を生成する。"""
-    hooks_dir = get_project_root()
-    
-    # 絶対パスでフックスクリプトを参照
-    post_tool_use_script = hooks_dir / "post_tool_use.py"
-    pre_tool_use_script = hooks_dir / "pre_tool_use.py"
-    
     settings = {
         "hooks": {
             "PostToolUse": [
@@ -163,7 +157,7 @@ def create_hook_settings(target_path: Path) -> dict:
                     "hooks": [
                         {
                             "type": "command",
-                            "command": f"python {post_tool_use_script}",
+                            "command": "jj-hook post-tool-use",
                             "timeout": 30
                         }
                     ]
@@ -175,7 +169,7 @@ def create_hook_settings(target_path: Path) -> dict:
                     "hooks": [
                         {
                             "type": "command", 
-                            "command": f"python {pre_tool_use_script}",
+                            "command": "jj-hook pre-tool-use",
                             "timeout": 15
                         }
                     ]
