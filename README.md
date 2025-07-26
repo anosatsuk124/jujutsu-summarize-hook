@@ -169,8 +169,7 @@ src/jj_hook/
 ├── config.py                   # Configuration management
 └── hooks/
     ├── __init__.py
-    ├── user_prompt_submit.py   # User prompt hook (branch creation)
-    ├── pre_tool_use.py         # Pre file-edit hook (branch creation)
+    ├── pre_tool_use.py         # Pre file-edit hook (new commit creation)
     └── post_tool_use.py        # Post file-edit hook (auto commit)
 ```
 
