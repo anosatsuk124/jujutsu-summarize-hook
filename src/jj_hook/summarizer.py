@@ -464,3 +464,65 @@ Output proposals in the following JSON format:
 }}
 
 Return empty array if no proposals. Output only JSON format:"""
+    
+    def execute_squash(self, cwd: str, proposal: SquashProposal) -> Tuple[bool, str]:
+        """スカッシュを実行する。"""
+        try:
+            if len(proposal.source_commits) < 2:
+                return False, "統合対象のコミットが不十分です"
+            
+            target = proposal.target_commit
+            sources = [c for c in proposal.source_commits if c != target]
+            
+            # 各ソースコミットを順次ターゲットに統合
+            for source in sources:
+                result = subprocess.run(
+                    ["jj", "squash", "--from", source, "--into", target],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=30
+                )
+                
+                if result.returncode != 0:
+                    return False, f"スカッシュ失敗: {result.stderr}"
+            
+            # コミットメッセージの更新
+            if proposal.suggested_message:
+                result = subprocess.run(
+                    ["jj", "describe", "-r", target, "-m", proposal.suggested_message],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=15
+                )
+                
+                if result.returncode != 0:
+                    return False, f"メッセージ更新失敗: {result.stderr}"
+            
+            return True, "スカッシュが完了しました"
+            
+        except Exception as e:
+            return False, f"実行エラー: {str(e)}"
+    
+    def create_backup_bookmark(self, cwd: str) -> Tuple[bool, str]:
+        """バックアップブックマークを作成する。"""
+        try:
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_name = f"backup_before_organize_{timestamp}"
+            
+            result = subprocess.run(
+                ["jj", "bookmark", "create", backup_name, "-r", "@"],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            if result.returncode == 0:
+                return True, backup_name
+            else:
+                return False, result.stderr.strip()
+        except Exception as e:
+            return False, str(e)
