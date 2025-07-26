@@ -59,7 +59,7 @@ def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         return False
     
-    # ファイルパスから判断（一時ファイルや設定ファイルはスキップ）
+    # ファイルパスから判断（一時ファイルのみスキップ）
     file_path = tool_input.get("file_path", "")
     if file_path:
         # 一時ファイルや隠しファイルはスキップ
@@ -68,18 +68,8 @@ def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
             ".tmp", ".temp", ".cache"
         ]):
             return False
-        
-        # 設定ファイルやドキュメントファイルも基本的には作成（意味のある変更として扱う）
-        if any(file_path.lower().endswith(ext) for ext in [
-            ".json", ".yaml", ".yml", ".toml", ".ini", 
-            ".md", ".txt", ".rst"
-        ]):
-            # 内容が空でなければ作成（ほとんどの編集を対象とする）
-            content = tool_input.get("content", "") or tool_input.get("new_string", "")
-            if content and content.strip():
-                return True
-            return False
     
+    # その他のファイルは基本的に作成（READMEなどを含む）
     return True
 
 
