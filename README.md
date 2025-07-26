@@ -195,7 +195,7 @@ uv run pytest
 ```
 src/jj_hook/
 ├── __init__.py
-├── cli.py                      # CLI entry point
+├── cli.py                      # CLI entry point (includes organize command)
 ├── summarizer.py               # AI functionality
 ├── config.py                   # Configuration management
 └── hooks/
