@@ -917,7 +917,7 @@ Execution steps:
     help="分析するコミット数の上限"
 )
 def organize(dry_run: bool, auto: bool, limit: int) -> None:
-    """jj-commit-organizerサブエージェントを使用してコミット履歴を整理する。"""
+    """AI分析を使用してコミット履歴を整理する。"""
     
     cwd = os.getcwd()
     language = os.environ.get("JJ_HOOK_LANGUAGE", "japanese")
@@ -929,12 +929,19 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
         sys.exit(1)
     
     console.print(Panel(
-        Text("🤖 jj-commit-organizer サブエージェントによるコミット履歴整理", style="bold blue"),
+        Text("🤖 AI分析によるコミット履歴整理", style="bold blue"),
         title="コミット履歴整理",
         border_style="blue"
     ))
     
     try:
+        # CommitOrganizerインスタンス作成
+        from .summarizer import CommitOrganizer, SummaryConfig
+        
+        config = SummaryConfig()
+        config.prompt_language = language
+        organizer = CommitOrganizer(config)
+        
         # 安全性チェック
         with console.status("[cyan]安全性をチェック中...", spinner="dots"):
             warnings = check_safety_conditions(cwd)
@@ -951,45 +958,99 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
         # バックアップ作成
         if not dry_run:
             with console.status("[cyan]バックアップを作成中...", spinner="dots"):
-                backup_success, backup_name = create_backup_bookmark(cwd)
+                backup_success, backup_name = organizer.create_backup_bookmark(cwd)
             
             if backup_success:
                 console.print(f"[dim]✅ バックアップ作成: {backup_name}[/dim]")
             else:
                 console.print(f"[yellow]⚠️  バックアップ作成に失敗: {backup_name}[/yellow]")
         
-        # コミット履歴分析
-        with console.status("[cyan]コミット履歴を分析中...", spinner="dots"):
-            history = get_commit_history(cwd, limit)
-            diff_summary = get_diff_summary(cwd)
+        # AI分析によるコミット履歴分析
+        with console.status("[cyan]AI分析中...", spinner="dots"):
+            analysis_success, proposals = organizer.analyze_commits(cwd, limit)
         
-        # プロンプト生成
-        prompt = create_organize_prompt(history, diff_summary, language)
+        if not analysis_success:
+            console.print("[red]AI分析に失敗しました[/red]")
+            sys.exit(1)
         
-        if dry_run:
-            prompt += "\n--dry-run モードで実行（実際の変更は行わない）"
+        if not proposals:
+            console.print(Panel(
+                "📊 分析完了\n"
+                "• 統合が推奨されるコミットはありません\n"
+                "• コミット履歴は既に適切に整理されています",
+                title="分析結果",
+                border_style="green"
+            ))
+            return
         
+        # 提案の表示
         console.print(Panel(
-            "📊 分析完了\n"
+            f"📊 分析完了\n"
             f"• 分析対象: {limit}個のコミット\n"
             f"• 安全性警告: {len(warnings)}個\n"
+            f"• 統合提案: {len(proposals)}件\n"
             f"• バックアップ: {'作成済み' if not dry_run and backup_success else 'スキップ'}",
             title="分析結果",
             border_style="green"
         ))
         
-        # Claude Code環境での実行を想定したメッセージ
-        console.print("\n[blue]次の手順でサブエージェントを呼び出してください:[/blue]")
-        console.print("[dim]Claude Code で以下のプロンプトを実行:[/dim]\n")
+        # 各提案の詳細表示
+        for i, proposal in enumerate(proposals, 1):
+            console.print(f"\n[bold blue]提案 {i}:[/bold blue]")
+            console.print(f"[dim]統合対象:[/dim] {', '.join(proposal.source_commits)}")
+            console.print(f"[dim]統合先:[/dim] {proposal.target_commit}")
+            console.print(f"[dim]理由:[/dim] {proposal.reason}")
+            console.print(f"[dim]推奨メッセージ:[/dim] {proposal.suggested_message}")
         
+        if dry_run:
+            console.print("\n[yellow]--dry-run モードのため、実際の変更は行いません[/yellow]")
+            return
+        
+        # 実行確認
+        if not auto:
+            console.print(f"\n[blue]{len(proposals)}件の統合を実行しますか？[/blue]")
+            if not Confirm.ask("続行", default=True):
+                console.print("[dim]操作をキャンセルしました[/dim]")
+                return
+        
+        # 統合実行
+        executed_count = 0
+        failed_count = 0
+        
+        with console.status("[cyan]統合を実行中...", spinner="dots"):
+            for i, proposal in enumerate(proposals, 1):
+                console.print(f"\n[cyan]統合 {i}/{len(proposals)}を実行中...[/cyan]")
+                success, message = organizer.execute_squash(cwd, proposal)
+                
+                if success:
+                    console.print(f"[green]✅ 完了: {message}[/green]")
+                    executed_count += 1
+                else:
+                    console.print(f"[red]❌ 失敗: {message}[/red]")
+                    failed_count += 1
+                    
+                    if not auto and failed_count > 0:
+                        if not Confirm.ask("エラーが発生しましたが続行しますか？"):
+                            break
+        
+        # 結果表示
         console.print(Panel(
-            f"jj-commit-organizerサブエージェントを使用してコミット履歴を整理してください。\n\n{prompt}",
-            title="サブエージェント用プロンプト",
-            border_style="cyan"
+            f"🎉 整理完了\n"
+            f"• 成功: {executed_count}件\n"
+            f"• 失敗: {failed_count}件\n"
+            f"• 総計: {len(proposals)}件の提案",
+            title="実行結果",
+            border_style="green" if failed_count == 0 else "yellow"
         ))
         
-        console.print("\n[green]✅ 整理準備が完了しました[/green]")
+        if executed_count > 0:
+            console.print("\n[green]✅ コミット履歴の整理が完了しました[/green]")
+            console.print("[dim]`jj log` でコミット履歴を確認してください[/dim]")
         
+    except ImportError as e:
+        console.print(f"[red]依存関係エラー: {e}[/red]")
+        console.print("[dim]`uv sync` で依存関係を更新してください[/dim]")
+        sys.exit(1)
     except Exception as e:
         console.print(f"[red]エラーが発生しました: {e}[/red]")
         sys.exit(1)
