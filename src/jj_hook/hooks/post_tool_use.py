@@ -14,10 +14,22 @@ from pathlib import Path
 # 言語設定の取得
 LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
 
+# インポート状態の追跡
+IMPORT_SUCCESS = True
+IMPORT_ERROR = None
+
 try:
     from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
-except ImportError:
-    from ..summarizer import JujutsuSummarizer, SummaryConfig
+except ImportError as e:
+    IMPORT_SUCCESS = False
+    IMPORT_ERROR = str(e)
+    try:
+        from ..summarizer import JujutsuSummarizer, SummaryConfig
+        IMPORT_SUCCESS = True
+        IMPORT_ERROR = None
+    except ImportError as e2:
+        IMPORT_SUCCESS = False
+        IMPORT_ERROR = str(e2)
     def create_fallback_summary(cwd: str) -> str:
         """フォールバック用の簡単なサマリー生成。"""
         try:
