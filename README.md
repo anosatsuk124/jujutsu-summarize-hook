@@ -4,7 +4,7 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 
 ## Features
 
-- **Automatic Branch Creation**: Automatically create new branches before file edits
+- **Automatic New Commit Creation**: Automatically create new commits before file edits using `jj new`
 - **Automatic Commits**: Automatically commit with AI-generated summaries after file edits
 - **GitHub Copilot Integration**: Built-in support for GitHub Copilot with OAuth authentication
 - **Multi-language Support**: Support for both English and Japanese commit messages and branch names
@@ -88,19 +88,14 @@ export JJ_HOOK_LANGUAGE="english"
 
 ### Automatic Hook Execution
 
-1. **On User Prompt Submit**: Automatic branch creation when submitting work-related prompts
-2. **Before File Edits**: Automatic branch creation before Edit, Write, MultiEdit tool usage  
-3. **After File Edits**: Automatic commits after file edits with AI-generated messages
+1. **Before File Edits**: Automatic new commit creation before Edit, Write, MultiEdit tool usage using `jj new`
+2. **After File Edits**: Automatic commits after file edits with AI-generated messages
 
 ### Example Workflow
 
 ```bash
-# Submit a work-related prompt to Claude Code
-"Add user authentication feature"
-# → Automatic branch creation: "feat/add-user-authentication-feature"
-
 # Edit files using Claude Code
-# → Before editing: Additional branch creation if needed
+# → Before editing: Automatic new commit creation with `jj new`
 # → After editing: Automatic commit with AI-generated message
 ```
 
