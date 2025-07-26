@@ -169,16 +169,25 @@ uv run pytest
 ```
 src/jj_hook/
 ├── __init__.py
-├── cli.py              # CLI entry point
-├── summarizer.py       # AI functionality
-├── config.py          # Configuration management
+├── cli.py                      # CLI entry point
+├── summarizer.py               # AI functionality
+├── config.py                   # Configuration management
 └── hooks/
     ├── __init__.py
-    ├── pre_tool_use.py     # Pre file-edit hook (branch creation)
-    └── post_tool_use.py    # Post file-edit hook (auto commit)
+    ├── user_prompt_submit.py   # User prompt hook (branch creation)
+    ├── pre_tool_use.py         # Pre file-edit hook (branch creation)
+    └── post_tool_use.py        # Post file-edit hook (auto commit)
 ```
 
 ## Hook Details
+
+### UserPromptSubmit Hook (user_prompt_submit.py)
+- **Trigger**: When user submits prompts to Claude Code
+- **Function**: Creates new Jujutsu branches for work-related prompts
+- **Behavior**:
+  - Analyzes prompt content to determine if it's work-related
+  - Skips question-type prompts to avoid unnecessary branches
+  - Generates descriptive branch names from prompt content
 
 ### PreToolUse Hook (pre_tool_use.py)
 - **Trigger**: Before Edit, Write, MultiEdit tool calls

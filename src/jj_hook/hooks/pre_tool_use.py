@@ -180,10 +180,6 @@ def main() -> None:
         sys.stdout.write("一時ファイルまたは設定ファイルのため、新しいブランチは作成しません。\n")
         sys.exit(0)
     
-    # 既に未コミットの変更がある場合はスキップ（作業中のブランチを継続）
-    if has_uncommitted_changes(cwd):
-        sys.stdout.write("未コミットの変更があるため、新しいブランチは作成しません。\n")
-        sys.exit(0)
     
     # ブランチの説明を生成
     branch_description = generate_branch_description_from_tool(tool_name, tool_input)
