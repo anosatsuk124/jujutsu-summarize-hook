@@ -134,22 +134,6 @@ def generate_branch_description_from_tool(tool_name: str, tool_input: dict) -> s
     return base_description
 
 
-def has_uncommitted_changes(cwd: str) -> bool:
-    """未コミットの変更があるかチェックする。"""
-    try:
-        result = subprocess.run(
-            ["jj", "status"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if result.returncode == 0:
-            status_output = result.stdout.strip()
-            return "No changes" not in status_output and len(status_output) > 0
-        return False
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
 
 
 def main() -> None:
