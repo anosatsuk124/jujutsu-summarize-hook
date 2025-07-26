@@ -800,10 +800,6 @@ def get_diff_summary(cwd: str) -> str:
             return "差分の取得に失敗しました"
     except Exception:
         return "差分の取得中にエラーが発生しました"
-
-
-def get_diff_summary(cwd: str) -> str:
-    """差分の概要を取得する。"""
     try:
         result = subprocess.run(
             ["jj", "diff", "--stat"],
