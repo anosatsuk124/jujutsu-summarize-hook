@@ -56,7 +56,7 @@ jj-hook install           # Install in current directory
 ### Configuration
 Environment variables for LLM configuration:
 - `JJ_HOOK_MODEL` - LLM model (default: gpt-3.5-turbo)
-- `JJ_HOOK_LANGUAGE` - Prompt language (default: japanese)
+- `JJ_HOOK_LANGUAGE` - Prompt language (default: english)
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` - API keys
 
 ## Hook Functionality
