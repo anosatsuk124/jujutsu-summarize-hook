@@ -17,6 +17,10 @@ LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
 try:
     from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
 except ImportError:
+    from ..summarizer import JujutsuSummarizer, SummaryConfig
+    IMPORT_SUCCESS = True
+    IMPORT_ERROR = None
+except ImportError as e:
     # フォールバック：スクリプトが単体で実行された場合
     msg = "警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。" if LANGUAGE == "japanese" else "Warning: Could not import jj_hook package. Running in standalone mode."
     sys.stderr.write(f"{msg}\n")
