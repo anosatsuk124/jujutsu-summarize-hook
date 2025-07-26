@@ -802,6 +802,42 @@ def get_diff_summary(cwd: str) -> str:
         return "差分の取得中にエラーが発生しました"
 
 
+def get_commit_history(cwd: str, limit: int = 10) -> str:
+    """コミット履歴を取得する。"""
+    try:
+        result = subprocess.run(
+            ["jj", "log", "-r", "present(@)::heads(main)", "--limit", str(limit)],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return "履歴の取得に失敗しました"
+    except Exception:
+        return "履歴の取得中にエラーが発生しました"
+
+
+def get_diff_summary(cwd: str) -> str:
+    """差分の概要を取得する。"""
+    try:
+        result = subprocess.run(
+            ["jj", "diff", "--stat"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+        else:
+            return "差分の取得に失敗しました"
+    except Exception:
+        return "差分の取得中にエラーが発生しました"
+
+
 def check_safety_conditions(cwd: str) -> List[str]:
     """安全性チェック。"""
     warnings = []
