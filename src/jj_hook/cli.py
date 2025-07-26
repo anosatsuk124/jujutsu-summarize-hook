@@ -182,8 +182,10 @@ def create_hook_settings() -> dict:
 
 
 def merge_settings(existing: dict, new_settings: dict) -> dict:
-    """既存の設定と新しい設定をマージする。"""
-    merged = existing.copy()
+    """既存の設定と新しい設定を安全にマージする。"""
+    import copy
+    
+    merged = copy.deepcopy(existing)
     
     if "hooks" not in merged:
         merged["hooks"] = {}
@@ -193,18 +195,33 @@ def merge_settings(existing: dict, new_settings: dict) -> dict:
         if event_name not in merged["hooks"]:
             merged["hooks"][event_name] = []
         
-        # 既存のフックと重複しないように追加
-        for new_hook_config in hooks_list:
-            # 同じmatcherのフックが既に存在するかチェック
-            matcher = new_hook_config.get("matcher", "")
-            existing_matchers = [
-                hook.get("matcher", "") for hook in merged["hooks"][event_name]
-            ]
-            
-            if matcher not in existing_matchers:
-                merged["hooks"][event_name].append(new_hook_config)
+        # 既存のjj-hookフックを削除（重複回避）
+        merged["hooks"][event_name] = [
+            hook for hook in merged["hooks"][event_name]
+            if not any(
+                "jj-hook" in cmd.get("command", "")
+                for cmd in hook.get("hooks", [])
+            )
+        ]
+        
+        # 新しいフック設定を追加
+        merged["hooks"][event_name].extend(hooks_list)
     
     return merged
+
+
+def backup_settings_file(settings_file: Path) -> Optional[Path]:
+    """設定ファイルのバックアップを作成する。"""
+    if not settings_file.exists():
+        return None
+    
+    backup_file = settings_file.with_suffix(".json.backup")
+    try:
+        import shutil
+        shutil.copy2(settings_file, backup_file)
+        return backup_file
+    except OSError:
+        return None
 
 
 @click.group()
