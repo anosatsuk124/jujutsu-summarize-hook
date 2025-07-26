@@ -69,17 +69,14 @@ def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
         ]):
             return False
         
-        # 設定ファイルやドキュメントファイルは慎重に判断
+        # 設定ファイルやドキュメントファイルも基本的には作成（意味のある変更として扱う）
         if any(file_path.lower().endswith(ext) for ext in [
             ".json", ".yaml", ".yml", ".toml", ".ini", 
             ".md", ".txt", ".rst"
         ]):
-            # 内容から判断（実装や機能追加であれば作成）
+            # 内容が空でなければ作成（ほとんどの編集を対象とする）
             content = tool_input.get("content", "") or tool_input.get("new_string", "")
-            if content and any(keyword in content.lower() for keyword in [
-                "function", "class", "def ", "import", "export",
-                "implementation", "feature", "todo", "fixme"
-            ]):
+            if content and content.strip():
                 return True
             return False
     
