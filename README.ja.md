@@ -118,6 +118,44 @@ export JJ_HOOK_LANGUAGE="japanese"
 - ローカルモデル (Ollama等)
 - その他LiteLLMでサポートされる全プロバイダー
 
+## CLIコマンド
+
+### 認証
+
+```bash
+# GitHub Copilotで認証
+jj-hook auth github-copilot
+
+# 認証状態を確認
+jj-hook auth --check
+```
+
+### インストール
+
+```bash
+# 現在のディレクトリにフックをインストール
+jj-hook install
+
+# 指定したディレクトリにインストール
+jj-hook install --path /path/to/project
+
+# グローバルにインストール
+jj-hook install --global
+
+# インストール内容をプレビュー（実際にはインストールしない）
+jj-hook install --dry-run
+```
+
+### フック手動実行
+
+```bash
+# post-tool-useフックを手動実行
+jj-hook post-tool-use
+
+# pre-tool-useフックを手動実行
+jj-hook pre-tool-use
+```
+
 ## 開発
 
 ### 開発環境のセットアップ
@@ -147,8 +185,28 @@ src/jj_hook/
 ├── config.py          # 設定管理
 └── hooks/
     ├── __init__.py
-    ├── post_tool_use.py     # ファイル編集後フック
-    └── user_prompt_submit.py # プロンプト送信時フック
+    ├── pre_tool_use.py      # ファイル編集前フック（リビジョン作成）
+    └── post_tool_use.py     # ファイル編集後フック（自動コミット）
 ```
+
+## フック詳細
+
+### PreToolUse フック (pre_tool_use.py)
+- **トリガー**: Edit、Write、MultiEditツール実行前
+- **機能**: `jj new`を使用して新しいリビジョンを自動作成
+- **動作**:
+  - 一時ファイルや設定ファイルはスキップ
+  - ワークスペースがクリーンな状態でのみ新しいリビジョンを作成
+  - ファイルパスと予定される変更内容に基づいてリビジョン説明を生成
+  - LiteLLMが利用可能な場合はAIを使用して意味のあるリビジョン名を作成
+
+### PostToolUse フック (post_tool_use.py)
+- **トリガー**: Edit、Write、MultiEditツール実行後
+- **機能**: AIが生成したサマリーで変更を自動コミット
+- **動作**:
+  - `jj status`と`jj diff`の出力を分析して変更内容を理解
+  - LiteLLMを使用して説明的なコミットメッセージを生成
+  - AI生成に失敗した場合はシンプルなコミットメッセージにフォールバック
+  - 実際の変更が検出された場合のみコミット
 
 
