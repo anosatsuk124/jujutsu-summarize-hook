@@ -397,8 +397,10 @@ def install_agent(is_global: bool, path: Optional[Path]) -> None:
         
         # 既存ファイルの確認
         if agent_file.exists():
-            if not Confirm.ask(f"[yellow]ファイル {agent_file} が既に存在します。上書きしますか？[/yellow]"):
-                console.print("[dim]インストールをキャンセルしました[/dim]")
+            exists_msg = f"ファイル {agent_file} が既に存在します。上書きしますか？" if language == "japanese" else f"File {agent_file} already exists. Overwrite?"
+            cancel_msg = "インストールをキャンセルしました" if language == "japanese" else "Installation cancelled"
+            if not Confirm.ask(f"[yellow]{exists_msg}[/yellow]"):
+                console.print(f"[dim]{cancel_msg}[/dim]")
                 return
         
         # サブエージェント定義の内容
