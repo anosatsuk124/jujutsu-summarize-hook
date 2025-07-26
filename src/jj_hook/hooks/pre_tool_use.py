@@ -12,6 +12,9 @@ import os
 import re
 from pathlib import Path
 
+# 言語設定の取得
+LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+
 try:
     from ..summarizer import JujutsuSummarizer, SummaryConfig
 except ImportError:
