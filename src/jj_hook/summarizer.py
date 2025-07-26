@@ -238,12 +238,25 @@ Output only the branch name:"""
 
 
 @dataclass
+class CommitMetrics:
+    """コミットのメトリクス情報"""
+    commit_id: str
+    message: str
+    files_changed: int
+    lines_added: int
+    lines_deleted: int
+    total_lines: int
+    size_category: str  # "tiny", "small", "medium", "large"
+    
+    
+@dataclass
 class SquashProposal:
     """統合提案の情報"""
     source_commits: List[str]  # 統合元コミットID
     target_commit: str         # 統合先コミットID
     reason: str               # 統合理由
     suggested_message: str    # 推奨メッセージ
+    confidence_score: float = 0.8  # 提案の信頼度
 
 
 class CommitOrganizer:
