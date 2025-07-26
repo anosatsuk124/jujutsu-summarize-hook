@@ -106,7 +106,7 @@ export JJ_HOOK_LANGUAGE="japanese"
 | 変数名 | デフォルト値 | 説明 |
 |--------|-------------|------|
 | `JJ_HOOK_MODEL` | `gpt-3.5-turbo` | 使用するLLMモデル |
-| `JJ_HOOK_LANGUAGE` | `japanese` | プロンプト言語 |
+| `JJ_HOOK_LANGUAGE` | `english` | プロンプト言語 |
 | `JJ_HOOK_MAX_TOKENS` | `100` | 最大トークン数 |
 | `JJ_HOOK_TEMPERATURE` | `0.1` | 生成温度 |
 
