@@ -313,36 +313,55 @@ class CommitOrganizer:
                     timeout=10
                 )
                 
+                # ファイル一覧取得
+                files_result = subprocess.run(
+                    ["jj", "diff", "-r", commit_id, "--name-only"],
+                    cwd=cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
                 if msg_result.returncode == 0 and diff_result.returncode == 0:
                     message = msg_result.stdout.strip()
                     diff_stat = diff_result.stdout.strip()
+                    
+                    # ファイルリストを取得（失敗しても続行）
+                    modified_files = []
+                    if files_result.returncode == 0:
+                        modified_files = [f.strip() for f in files_result.stdout.split('\n') if f.strip()]
                     
                     # 差分統計を解析
                     files_changed, lines_added, lines_deleted = self._parse_diff_stat(diff_stat)
                     total_lines = lines_added + lines_deleted
                     size_category = self._categorize_size(files_changed, total_lines)
                     
-                    metrics = CommitMetrics(
+                    # ExtendedCommitMetricsを作成
+                    metrics = ExtendedCommitMetrics(
                         commit_id=commit_id,
                         message=message,
                         files_changed=files_changed,
                         lines_added=lines_added,
                         lines_deleted=lines_deleted,
                         total_lines=total_lines,
-                        size_category=size_category
+                        size_category=size_category,
+                        modified_files=modified_files,
+                        commit_time=None  # 時間情報は別途取得
                     )
                     metrics_list.append(metrics)
                     
             except Exception as e:
                 # エラーの場合はダミーデータで追加
-                metrics = CommitMetrics(
+                metrics = ExtendedCommitMetrics(
                     commit_id=commit_id,
                     message=f"取得失敗: {str(e)}",
                     files_changed=0,
                     lines_added=0,
                     lines_deleted=0,
                     total_lines=0,
-                    size_category="unknown"
+                    size_category="unknown",
+                    modified_files=[],
+                    commit_time=None
                 )
                 metrics_list.append(metrics)
                 
