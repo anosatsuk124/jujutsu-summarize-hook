@@ -875,24 +875,36 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
             border_style="green"
         ))
         
-        # 各提案の詳細表示
+        # 各提案の詳細表示と選択
+        selected_proposals = []
+        
         for i, proposal in enumerate(proposals, 1):
             console.print(f"\n[bold blue]提案 {i}:[/bold blue]")
             console.print(f"[dim]統合対象:[/dim] {', '.join(proposal.source_commits)}")
             console.print(f"[dim]統合先:[/dim] {proposal.target_commit}")
             console.print(f"[dim]理由:[/dim] {proposal.reason}")
             console.print(f"[dim]推奨メッセージ:[/dim] {proposal.suggested_message}")
+            console.print(f"[dim]信頼度:[/dim] {proposal.confidence_score:.1%}")
+            
+            if not auto and not dry_run:
+                # 個別選択
+                if Confirm.ask(f"この提案を実行しますか？", default=False):
+                    selected_proposals.append(proposal)
+            else:
+                selected_proposals.append(proposal)
         
         if dry_run:
             console.print("\n[yellow]--dry-run モードのため、実際の変更は行いません[/yellow]")
+            if not auto:
+                console.print(f"[dim]選択された提案: {len(selected_proposals)}件[/dim]")
             return
         
-        # 実行確認
-        if not auto:
-            console.print(f"\n[blue]{len(proposals)}件の統合を実行しますか？[/blue]")
-            if not Confirm.ask("続行", default=True):
-                console.print("[dim]操作をキャンセルしました[/dim]")
-                return
+        # 自動実行の場合は全体確認
+        if auto and selected_proposals:
+            console.print(f"\n[blue]自動実行モード: {len(selected_proposals)}件の統合を実行します[/blue]")
+        elif not selected_proposals:
+            console.print("\n[yellow]実行する提案が選択されませんでした[/yellow]")
+            return
         
         # 統合実行
         executed_count = 0
