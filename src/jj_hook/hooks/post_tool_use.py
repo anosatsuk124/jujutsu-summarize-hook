@@ -19,11 +19,13 @@ IMPORT_ERROR = None
 
 try:
     from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
+    from jj_hook.vcs_backend import detect_vcs_backend, is_vcs_repository
 except ImportError as e:
     IMPORT_SUCCESS = False
     IMPORT_ERROR = str(e)
     try:
         from ..summarizer import JujutsuSummarizer, SummaryConfig
+        from ..vcs_backend import detect_vcs_backend, is_vcs_repository
 
         IMPORT_SUCCESS = True
         IMPORT_ERROR = None
@@ -34,10 +36,8 @@ except ImportError as e:
     def create_fallback_summary(cwd: str) -> str:
         """フォールバック用の簡単なサマリー生成。"""
         try:
-            result = subprocess.run(
-                ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0 and "No changes" not in result.stdout:
+            backend = detect_vcs_backend(cwd)
+            if backend and backend.has_uncommitted_changes():
                 return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
             else:
                 return ""
@@ -46,39 +46,28 @@ except ImportError as e:
 
 
 def is_jj_repository(cwd: str) -> bool:
-    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
-    try:
-        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    """現在のディレクトリがVCSリポジトリかどうかチェックする（下位互換用）。"""
+    return is_vcs_repository(cwd)
 
 
 def has_uncommitted_changes(cwd: str) -> bool:
     """コミットされていない変更があるかチェックする。"""
     try:
-        result = subprocess.run(
-            ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            status_output = result.stdout.strip()
-            return "No changes" not in status_output and len(status_output) > 0
-        return False
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        backend = detect_vcs_backend(cwd)
+        return backend is not None and backend.has_uncommitted_changes()
+    except Exception:
         return False
 
 
 def commit_changes(cwd: str, message: str) -> tuple[bool, str]:
     """変更をコミットする。"""
     try:
-        result = subprocess.run(
-            ["jj", "describe", "-m", message], cwd=cwd, capture_output=True, text=True, timeout=30
-        )
-        if result.returncode == 0:
-            return True, result.stdout.strip()
+        backend = detect_vcs_backend(cwd)
+        if backend:
+            return backend.commit_changes(message)
         else:
-            return False, result.stderr.strip()
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
+            return False, "VCSリポジトリが見つかりません"
+    except Exception as e:
         return False, str(e)
 
 
@@ -100,12 +89,12 @@ def main() -> None:
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         sys.exit(0)
 
-    # Jujutsuリポジトリかチェック
+    # VCSリポジトリかチェック
     if not is_jj_repository(cwd):
         msg = (
-            "Jujutsuリポジトリではありません。スキップします。"
+            "VCSリポジトリではありません。スキップします。"
             if LANGUAGE == "japanese"
-            else "Not a Jujutsu repository. Skipping."
+            else "Not a VCS repository. Skipping."
         )
         sys.stderr.write(f"{msg}\n")
         sys.exit(0)

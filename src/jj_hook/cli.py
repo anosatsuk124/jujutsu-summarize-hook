@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import click
 from rich.console import Console
@@ -15,6 +15,7 @@ from rich.prompt import Confirm
 from rich.text import Text
 
 from .template_loader import load_template
+from .vcs_backend import detect_vcs_backend, is_vcs_repository
 
 console = Console()
 
@@ -22,55 +23,32 @@ console = Console()
 def create_fallback_summary(cwd: str) -> str:
     """フォールバック用の簡単なサマリー生成。"""
     LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
-    try:
-        result = subprocess.run(
-            ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0 and "No changes" not in result.stdout:
-            return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
-        else:
-            return ""
-    except Exception:
+    backend = detect_vcs_backend(cwd)
+    if backend and backend.has_uncommitted_changes():
+        return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
+    else:
         return ""
 
 
 def is_jj_repository(cwd: str) -> bool:
-    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
-    try:
-        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    """現在のディレクトリがJujutsuリポジトリかどうかチェックする（下位互換用）。"""
+    backend = detect_vcs_backend(cwd)
+    return backend is not None and hasattr(backend, "is_repository") and backend.is_repository()
 
 
 def has_uncommitted_changes(cwd: str) -> bool:
     """コミットされていない変更があるかチェックする。"""
-    try:
-        result = subprocess.run(
-            ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            status_output = result.stdout.strip()
-            return "No changes" not in status_output and len(status_output) > 0
-        return False
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    backend = detect_vcs_backend(cwd)
+    return backend is not None and backend.has_uncommitted_changes()
 
 
 def commit_changes(cwd: str, message: str) -> tuple[bool, str]:
     """変更をコミットする。"""
-    try:
-        result = subprocess.run(
-            ["jj", "describe", "-m", message], cwd=cwd, capture_output=True, text=True, timeout=30
-        )
-        if result.returncode == 0:
-            return True, result.stdout.strip()
-        else:
-            return False, result.stderr.strip()
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
-        return False, str(e)
-
-
+    backend = detect_vcs_backend(cwd)
+    if backend:
+        return backend.commit_changes(message)
+    else:
+        return False, "VCSリポジトリが見つかりません"
 
 
 def check_github_copilot_auth() -> tuple[bool, str]:
@@ -192,13 +170,13 @@ def get_project_root() -> Path:
 def get_slash_command_content(language: str = "japanese") -> str:
     """Generate Markdown content for slash command from template file."""
     from pathlib import Path
-    
+
     template_path = Path(__file__).parent / "templates" / "slash_command.md"
-    
+
     try:
         with open(template_path, "r", encoding="utf-8") as f:
             content = f.read()
-        
+
         # Replace language placeholder
         return content.format(language=language)
     except FileNotFoundError:
@@ -236,19 +214,20 @@ def create_claude_settings_dir(target_path: Path) -> Path:
     return claude_dir
 
 
-def get_existing_settings(settings_file: Path) -> dict:
+def get_existing_settings(settings_file: Path) -> dict[str, Any]:
     """既存の設定ファイルを読み込む。存在しない場合は空の辞書を返す。"""
     if settings_file.exists():
         try:
             with open(settings_file, encoding="utf-8") as f:
-                return json.load(f)
+                data: dict[str, Any] = json.load(f)
+                return data
         except (json.JSONDecodeError, OSError) as e:
             console.print(f"[yellow]警告: 既存の設定ファイルの読み込みに失敗しました: {e}[/yellow]")
             return {}
     return {}
 
 
-def create_hook_settings() -> dict:
+def create_hook_settings() -> dict[str, Any]:
     """フック設定を生成する。"""
     settings = {
         "hooks": {
@@ -274,7 +253,7 @@ def create_hook_settings() -> dict:
     return settings
 
 
-def merge_settings(existing: dict, new_settings: dict) -> dict:
+def merge_settings(existing: dict[str, Any], new_settings: dict[str, Any]) -> dict[str, Any]:
     """既存の設定と新しい設定を安全にマージする。"""
     import copy
 
@@ -1040,57 +1019,96 @@ def summarize() -> None:
     LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
 
     try:
-        if not is_jj_repository(cwd):
-            msg = "Jujutsuリポジトリではありません。スキップします。" if LANGUAGE == "japanese" else "Not a Jujutsu repository. Skipping."
+        if not is_vcs_repository(cwd):
+            msg = (
+                "VCSリポジトリではありません。スキップします。"
+                if LANGUAGE == "japanese"
+                else "Not a VCS repository. Skipping."
+            )
             console.print(f"[red]{msg}[/red]")
             sys.exit(0)
 
         if not has_uncommitted_changes(cwd):
-            msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+            msg = (
+                "変更がありません。コミットをスキップします。"
+                if LANGUAGE == "japanese"
+                else "No changes found. Skipping commit."
+            )
             console.print(f"[yellow]{msg}[/yellow]")
             sys.exit(0)
 
         console.print("[blue]AIがコミットメッセージを生成中...[/blue]")
         try:
             from jj_hook.summarizer import JujutsuSummarizer
+
             summarizer = JujutsuSummarizer()
             success, summary = summarizer.generate_commit_summary(cwd)
 
             if not success:
-                error_msg = f"サマリー生成に失敗しました: {summary}" if LANGUAGE == "japanese" else f"Summary generation failed: {summary}"
+                error_msg = (
+                    f"サマリー生成に失敗しました: {summary}"
+                    if LANGUAGE == "japanese"
+                    else f"Summary generation failed: {summary}"
+                )
                 console.print(f"[red]{error_msg}[/red]")
                 summary = create_fallback_summary(cwd)
                 if not summary:
                     # フォールバックでもサマリーが生成できない場合
-                    msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                    msg = (
+                        "変更がありません。コミットをスキップします。"
+                        if LANGUAGE == "japanese"
+                        else "No changes found. Skipping commit."
+                    )
                     console.print(f"[yellow]{msg}[/yellow]")
                     sys.exit(0)
 
         except ImportError:
-            console.print("[yellow]警告: summarizerモジュールのインポートに失敗しました。フォールバックします。[/yellow]")
+            console.print(
+                "[yellow]警告: summarizerモジュールのインポートに失敗しました。フォールバックします。[/yellow]"
+            )
             summary = create_fallback_summary(cwd)
             if not summary:
-                msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                msg = (
+                    "変更がありません。コミットをスキップします。"
+                    if LANGUAGE == "japanese"
+                    else "No changes found. Skipping commit."
+                )
                 console.print(f"[yellow]{msg}[/yellow]")
                 sys.exit(0)
         except Exception as e:
-            error_msg = f"予期しないエラー: {type(e).__name__}: {str(e)}" if LANGUAGE == "japanese" else f"Unexpected error: {type(e).__name__}: {str(e)}"
+            error_msg = (
+                f"予期しないエラー: {type(e).__name__}: {str(e)}"
+                if LANGUAGE == "japanese"
+                else f"Unexpected error: {type(e).__name__}: {str(e)}"
+            )
             console.print(f"[red]{error_msg}[/red]")
             summary = create_fallback_summary(cwd)
             if not summary:
-                msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                msg = (
+                    "変更がありません。コミットをスキップします。"
+                    if LANGUAGE == "japanese"
+                    else "No changes found. Skipping commit."
+                )
                 console.print(f"[yellow]{msg}[/yellow]")
                 sys.exit(0)
 
         commit_success, commit_result = commit_changes(cwd, summary)
 
         if commit_success:
-            success_msg = f"✅ 自動コミット完了: {summary}" if LANGUAGE == "japanese" else f"✅ Auto-commit completed: {summary}"
+            success_msg = (
+                f"✅ 自動コミット完了: {summary}"
+                if LANGUAGE == "japanese"
+                else f"✅ Auto-commit completed: {summary}"
+            )
             console.print(f"[green]{success_msg}[/green]")
             if commit_result:
                 console.print(f"詳細: {commit_result}")
         else:
-            error_msg = f"❌ コミットに失敗しました: {commit_result}" if LANGUAGE == "japanese" else f"❌ Commit failed: {commit_result}"
+            error_msg = (
+                f"❌ コミットに失敗しました: {commit_result}"
+                if LANGUAGE == "japanese"
+                else f"❌ Commit failed: {commit_result}"
+            )
             console.print(f"[red]{error_msg}[/red]")
             sys.exit(1)
 
@@ -1099,15 +1117,6 @@ def summarize() -> None:
     except Exception as e:
         console.print(f"[red]エラーが発生しました: {e}[/red]")
         sys.exit(1)
-
-
-def is_jj_repository(cwd: str) -> bool:
-    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
-    try:
-        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
 
 
 def check_safety_conditions(cwd: str) -> List[str]:
@@ -1163,13 +1172,9 @@ def organize(
     cwd = os.getcwd()
     language = os.environ.get("JJ_HOOK_LANGUAGE", "japanese")
 
-    # Jujutsuリポジトリかチェック
-    if not is_jj_repository(cwd):
-        msg = (
-            "Jujutsuリポジトリではありません。"
-            if language == "japanese"
-            else "Not a Jujutsu repository."
-        )
+    # VCSリポジトリかチェック
+    if not is_vcs_repository(cwd):
+        msg = "VCSリポジトリではありません。" if language == "japanese" else "Not a VCS repository."
         console.print(f"[red]{msg}[/red]")
         sys.exit(1)
 
