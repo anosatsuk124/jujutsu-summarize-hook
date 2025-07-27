@@ -53,6 +53,11 @@ jj log -p <file-path>
 ```
 
 ### 3. Organization Execution
+
+You **must use `-m`** to specify commit messages if you do not specify `-m`, the terminal will **hung** until opening the editor because **you cannot use any editors**.
+
+Without `-m`, **DO NOT execute** `squash` `commit` `describe` !!!!
+
 ```bash
 # Squash multiple commits
 jj squash -r <commit-range> -m "New commit message"
@@ -96,7 +101,7 @@ Proposed Organization:
 3. Keep commit F independent
 
 Planned Commands:
-jj squash -r A::C
+jj squash -r A::C -m "feat: Implement user registration feature"
 jj describe -r A -m "feat: Implement user registration feature"
 ```
 
