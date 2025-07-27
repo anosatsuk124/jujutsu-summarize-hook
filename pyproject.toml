@@ -48,7 +48,7 @@ Homepage = "https://github.com/anosatsuk124/vcs-cc-hook"
 Repository = "https://github.com/anosatsuk124/vcs-cc-hook"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/jj_hook"]
+packages = ["src/vcs_cc_hook"]
 
 [tool.ruff]
 line-length = 100
