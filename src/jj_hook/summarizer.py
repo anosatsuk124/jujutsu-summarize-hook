@@ -11,6 +11,8 @@ from difflib import SequenceMatcher
 import litellm
 from pydantic import BaseModel
 
+from .template_loader import load_template
+
 
 class SummaryConfig(BaseModel):
     """サマリー生成の設定。"""
@@ -84,10 +86,7 @@ class JujutsuSummarizer:
             return False, "変更がありません"
         
         # プロンプトを構築
-        if self.config.prompt_language == "japanese":
-            prompt = self._build_japanese_prompt(status_output, diff_output)
-        else:
-            prompt = self._build_english_prompt(status_output, diff_output)
+        prompt = load_template("commit_message", status=status_output, diff=diff_output)
         
         try:
             # LiteLLMでサマリーを生成
@@ -171,44 +170,12 @@ Output only the commit message:"""
             (success, branch_name): 成功フラグとブランチ名
         """
         try:
-            if self.config.prompt_language == "japanese":
-                system_prompt = """
-ユーザーのプロンプトから適切なブランチ名を生成してください。
-
-要求事項:
-- ケバブケース（ハイフン区切り）
-- 英数字とハイフンのみ使用
-- 20文字以内
-- 作業内容を簡潔に表現
-
-例:
-- "ユーザー認証機能を追加して" → "add-user-auth"
-- "バグを修正する" → "fix-bug"
-- "設定を更新" → "update-config"
-
-ブランチ名のみを出力してください:"""
-            else:
-                system_prompt = """
-Generate an appropriate branch name from the user's prompt.
-
-Requirements:
-- Use kebab-case (hyphen-separated)
-- Only alphanumeric characters and hyphens
-- Under 20 characters
-- Briefly describe the work
-
-Examples:
-- "Add user authentication feature" → "add-user-auth"
-- "Fix login bug" → "fix-login-bug"
-- "Update configuration" → "update-config"
-
-Output only the branch name:"""
+            system_prompt = load_template("branch_name", prompt=prompt)
             
             completion_kwargs = {
                 "model": self.config.model,
                 "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": system_prompt}
                 ],
                 "max_tokens": 30,
                 "temperature": 0.1
@@ -791,10 +758,11 @@ class CommitOrganizer:
     def _generate_squash_proposals(self, log_output: str, commit_details: Dict[str, Dict[str, Any]]) -> Tuple[bool, List[SquashProposal]]:
         """AI分析でスカッシュ提案を生成する。"""
         try:
-            if self.config.prompt_language == "japanese":
-                prompt = self._build_japanese_analysis_prompt(log_output, commit_details)
-            else:
-                prompt = self._build_english_analysis_prompt(log_output, commit_details)
+            details_text = ""
+            for commit_id, details in commit_details.items():
+                details_text += f"\n{commit_id}: {details['message']}\n{details['diff_stat']}\n"
+            
+            prompt = load_template("commit_analysis", log_output=log_output, details_text=details_text)
             
             completion_kwargs = {
                 "model": self.config.model,
