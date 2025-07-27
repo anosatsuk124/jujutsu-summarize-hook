@@ -9,7 +9,7 @@ description = "Claude Code hooks for Jujutsu (jj) with AI-powered commit summari
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [
-    { name = "jj-hook", email = "noreply@example.com" }
+    { name = "Satsuki Akiba", email = "anosatsuk124@gmail.com" }
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -42,8 +42,8 @@ dev = [
 jj-hook = "jj_hook.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/example/jujutsu-summarize-hook"
-Repository = "https://github.com/example/jujutsu-summarize-hook"
+Homepage = "https://github.com/anosatsuk124/jujutsu-summarize-hook"
+Repository = "https://github.com/anosatsuk124/jujutsu-summarize-hook"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jj_hook"]
