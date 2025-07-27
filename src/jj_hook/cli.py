@@ -697,6 +697,113 @@ Always aim to improve commit history quality, considering future maintenance and
         sys.exit(1)
 
 
+@cli.command(name="install-slash-command")
+@click.option(
+    "--global", "is_global",
+    is_flag=True,
+    help="グローバル設定（~/.claude/slash-commands/）にインストール"
+)
+@click.option(
+    "--path", 
+    "-p", 
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+    help="インストール先のディレクトリパス（--globalと併用不可）"
+)
+def install_slash_command(is_global: bool, path: Optional[Path]) -> None:
+    """jj-commit-organizerを呼び出すslash command（/jj-commit-organizer）をClaude Code設定に追加する。"""
+    
+    # 言語設定の取得
+    language = os.environ.get("JJ_HOOK_LANGUAGE", "japanese")
+    
+    # インストール先の決定
+    if is_global and path:
+        error_msg = "エラー: --globalと--pathは同時に指定できません" if language == "japanese" else "Error: --global and --path cannot be used together"
+        console.print(f"[red]{error_msg}[/red]")
+        sys.exit(1)
+    
+    if is_global:
+        slash_commands_dir = Path.home() / ".claude" / "slash-commands"
+        install_location = "グローバル設定" if language == "japanese" else "Global settings"
+    else:
+        target_path = path if path is not None else Path.cwd()
+        slash_commands_dir = target_path / ".claude" / "slash-commands"
+        install_location = f"ローカル設定 ({target_path})" if language == "japanese" else f"Local settings ({target_path})"
+    
+    location_label = "インストール先" if language == "japanese" else "Install location"
+    directory_label = "ディレクトリ" if language == "japanese" else "Directory"
+    console.print(f"[blue]{location_label}: {install_location}[/blue]")
+    console.print(f"[dim]{directory_label}: {slash_commands_dir}[/dim]")
+    
+    try:
+        # ディレクトリ作成
+        slash_commands_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Slash commandファイルのパス
+        command_file = slash_commands_dir / "jj-commit-organizer.md"
+        
+        # 既存ファイルの確認
+        if command_file.exists():
+            exists_msg = f"ファイル {command_file} が既に存在します。上書きしますか？" if language == "japanese" else f"File {command_file} already exists. Overwrite?"
+            cancel_msg = "インストールをキャンセルしました" if language == "japanese" else "Installation cancelled"
+            if not Confirm.ask(f"[yellow]{exists_msg}[/yellow]"):
+                console.print(f"[dim]{cancel_msg}[/dim]")
+                return
+        
+        # Slash commandの内容を取得
+        command_content = get_slash_command_content(language)
+        
+        # ファイル書き込み
+        with open(command_file, "w", encoding="utf-8") as f:
+            f.write(command_content)
+        
+        success_title = "🎉 Slash Command インストール成功" if language == "japanese" else "🎉 Slash Command Installation Success"
+        usage_label = "使用方法" if language == "japanese" else "Usage"
+        function_label = "機能" if language == "japanese" else "Features"
+        
+        if language == "japanese":
+            console.print(Panel(
+                Text("⚡ /jj-commit-organizer slash command のインストールが完了しました！\n\n"
+                     f"{usage_label}:\n"
+                     "• Claude Code で「/jj-commit-organizer」と入力\n" 
+                     "• jj-commit-organizer サブエージェントが自動呼び出し\n"
+                     "• コミット履歴の分析と整理を実行\n\n"
+                     f"{function_label}:\n"
+                     "• jj log と jj diff による履歴分析\n"
+                     "• jj squash や jj describe による自動整理\n"
+                     "• バックアップブランチの自動作成\n"
+                     "• 日本語での分析結果報告", 
+                     style="bold green"),
+                title=success_title,
+                border_style="green"
+            ))
+        else:
+            console.print(Panel(
+                Text("⚡ /jj-commit-organizer slash command has been installed successfully!\n\n"
+                     f"{usage_label}:\n"
+                     "• Type \"/jj-commit-organizer\" in Claude Code\n" 
+                     "• Automatically invokes jj-commit-organizer sub-agent\n"
+                     "• Executes commit history analysis and organization\n\n"
+                     f"{function_label}:\n"
+                     "• History analysis using jj log and jj diff\n"
+                     "• Automatic organization with jj squash and jj describe\n"
+                     "• Automatic backup branch creation\n"
+                     "• Analysis results reported in English", 
+                     style="bold green"),
+                title=success_title,
+                border_style="green"
+            ))
+        
+    except OSError as e:
+        error_msg = f"エラー: ファイル操作に失敗しました: {e}" if language == "japanese" else f"Error: File operation failed: {e}"
+        console.print(f"[red]{error_msg}[/red]")
+        sys.exit(1)
+    except Exception as e:
+        error_msg = f"予期しないエラーが発生しました: {e}" if language == "japanese" else f"Unexpected error occurred: {e}"
+        console.print(f"[red]{error_msg}[/red]")
+        sys.exit(1)
+
+
 @cli.command()
 @click.argument("provider", type=click.Choice(["github-copilot"]), required=False, default="github-copilot")
 @click.option("--check", "-c", is_flag=True, help="認証状態のみ確認")
