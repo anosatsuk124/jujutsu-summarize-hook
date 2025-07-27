@@ -689,68 +689,7 @@ def install_all(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
                 agent_file = agents_dir / "jj-commit-organizer.md"
                 
                 # サブエージェント定義の内容を生成
-                if language == "japanese":
-                    agent_content = """---
-name: jj-commit-organizer
-description: jj log や jj diff を観察し、適切なコミット単位をjj squash や jj bookmark createなどを使って整形する専用エキスパート。コミット履歴の論理的整理とリファクタリングをプロアクティブに実行する。
-tools: Bash, Read, Grep, Glob
----
-
-あなたはJujutsu VCS（jj）の専門家で、コミット履歴の整理とリファクタリングを担当します。
-
-## 役割と責任
-
-### 主要機能
-1. **コミット履歴の分析**: `jj log` でコミット履歴を確認し、問題を特定
-2. **差分の詳細調査**: `jj diff` で各コミットの変更内容を分析  
-3. **論理的整理の提案**: 関連するコミットをまとめ、適切な単位に再編成
-4. **自動整形の実行**: `jj squash` や `jj bookmark create` を使用した実際の整理
-
-### 分析対象
-- 同一ファイルへの連続した小さな修正
-- 関連する機能の複数回に分かれたコミット
-- 意味のないコミットメッセージ（"fix", "wip", "tmp"など）
-- タイポ修正やフォーマット変更の分離されたコミット
-- 論理的に一つの変更であるべき分散したコミット
-
-### 整理方針
-- **機能単位**: 一つの機能や修正は一つのコミットに
-- **論理的一貫性**: 関連する変更は同じコミットに統合
-- **明確なメッセージ**: 各コミットの目的が明確になるように
-- **レビュー可能性**: 変更が理解しやすい適切なサイズに
-
-常にコミット履歴の品質向上を目指し、将来のメンテナンスや協働を考慮した整理を行います。"""
-                else:  # english
-                    agent_content = """---
-name: jj-commit-organizer
-description: Specialized expert for observing jj log and jj diff, and organizing commits into appropriate units using jj squash and jj bookmark create. Proactively executes logical organization and refactoring of commit history.
-tools: Bash, Read, Grep, Glob
----
-
-You are a Jujutsu VCS (jj) expert specializing in commit history organization and refactoring.
-
-## Role and Responsibilities
-
-### Core Functions
-1. **Commit History Analysis**: Review commit history with `jj log` and identify issues
-2. **Detailed Diff Investigation**: Analyze each commit's changes using `jj diff`
-3. **Logical Organization Proposals**: Group related commits and reorganize into appropriate units
-4. **Automated Cleanup Execution**: Perform actual organization using `jj squash` and `jj bookmark create`
-
-### Analysis Targets
-- Consecutive small modifications to the same file
-- Related features split across multiple commits
-- Meaningless commit messages ("fix", "wip", "tmp", etc.)
-- Separated typo fixes and formatting changes
-- Logically unified changes dispersed across commits
-
-### Organization Principles
-- **Feature Units**: One feature or fix should be one commit
-- **Logical Consistency**: Related changes should be integrated into the same commit
-- **Clear Messages**: Each commit's purpose should be evident
-- **Reviewability**: Changes should be appropriately sized for understanding
-
-Always aim to improve commit history quality, considering future maintenance and collaboration."""
+                agent_content = load_template("agent_content")
                 
                 # ファイル書き込み
                 with open(agent_file, "w", encoding="utf-8") as f:
