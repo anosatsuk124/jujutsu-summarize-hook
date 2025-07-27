@@ -47,6 +47,29 @@ jj-hook install --path .
 jj-hook install
 ```
 
+#### 全機能を一括インストール
+
+```bash
+# hooks + sub-agent + slash command を一括インストール
+jj-hook install-all
+
+# プレビューモードで確認
+jj-hook install-all --dry-run
+
+# グローバルにインストール
+jj-hook install-all --global
+```
+
+#### 個別インストール
+
+```bash
+# Sub-agent のみインストール
+jj-hook install-agent
+
+# Slash command のみインストール  
+jj-hook install-slash-command
+```
+
 ### 3. LLMプロバイダーの設定
 
 #### GitHub Copilot（推奨）
