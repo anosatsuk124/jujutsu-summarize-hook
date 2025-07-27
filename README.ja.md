@@ -6,6 +6,8 @@
 
 - **自動新規コミット作成**: `jj new`を使用してファイル編集前に新しいコミットを自動作成
 - **自動コミット**: ファイル編集後にAIが生成したサマリーで自動コミット
+- **コミット履歴整理**: jj-commit-organizer サブエージェントによる自動コミット整理
+- **Slash Command**: `/jj-commit-organizer` コマンドで簡単アクセス
 - **GitHub Copilot連携**: OAuth認証による組み込みGitHub Copilotサポート
 - **日本語対応**: 日本語でのコミットメッセージとコミット名生成
 - **複数LLMプロバイダー対応**: OpenAI、Anthropic、GitHub Copilot、ローカルモデル等をサポート
