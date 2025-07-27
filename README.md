@@ -1,10 +1,11 @@
 # jujutsu-summarize-hook
 
-This repository provides AI-powered hooks for Claude Code that integrate with the Jujutsu version control system (jj).
+This repository provides AI-powered hooks for Claude Code that integrate with both Jujutsu (jj) and Git version control systems.
 
 ## Features
 
-- **Automatic New Commit Creation**: Automatically create new commits before file edits using `jj new`
+- **Multi-VCS Support**: Automatic detection and support for both Jujutsu (jj) and Git repositories
+- **Automatic New Branch/Revision Creation**: Create new branches (Git) or revisions (Jujutsu) before file edits
 - **Automatic Commits**: Automatically commit with AI-generated summaries after file edits
 - **AI-Powered Commit History Organization**: Analyze and reorganize commit history using `jj-hook organize`
 - **Sub-agent Integration**: jj-commit-organizer sub-agent for intelligent commit management
@@ -19,7 +20,7 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 
 - Python 3.9+
 - [uv](https://docs.astral.sh/uv/)
-- [Jujutsu (jj)](https://github.com/martinvonz/jj)
+- [Jujutsu (jj)](https://github.com/martinvonz/jj) or [Git](https://git-scm.com/)
 - [Claude Code](https://claude.ai/code)
 - [mise](https://mise.jdx.dev/) (recommended)
 

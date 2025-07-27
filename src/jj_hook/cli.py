@@ -6,7 +6,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import click
 from rich.console import Console
@@ -15,6 +15,7 @@ from rich.prompt import Confirm
 from rich.text import Text
 
 from .template_loader import load_template
+from .vcs_backend import detect_vcs_backend, is_vcs_repository
 
 console = Console()
 
@@ -22,53 +23,32 @@ console = Console()
 def create_fallback_summary(cwd: str) -> str:
     """フォールバック用の簡単なサマリー生成。"""
     LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
-    try:
-        result = subprocess.run(
-            ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0 and "No changes" not in result.stdout:
-            return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
-        else:
-            return ""
-    except Exception:
+    backend = detect_vcs_backend(cwd)
+    if backend and backend.has_uncommitted_changes():
+        return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
+    else:
         return ""
 
 
 def is_jj_repository(cwd: str) -> bool:
-    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
-    try:
-        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    """現在のディレクトリがJujutsuリポジトリかどうかチェックする（下位互換用）。"""
+    backend = detect_vcs_backend(cwd)
+    return backend is not None and hasattr(backend, 'is_repository') and backend.is_repository()
 
 
 def has_uncommitted_changes(cwd: str) -> bool:
     """コミットされていない変更があるかチェックする。"""
-    try:
-        result = subprocess.run(
-            ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            status_output = result.stdout.strip()
-            return "No changes" not in status_output and len(status_output) > 0
-        return False
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    backend = detect_vcs_backend(cwd)
+    return backend is not None and backend.has_uncommitted_changes()
 
 
 def commit_changes(cwd: str, message: str) -> tuple[bool, str]:
     """変更をコミットする。"""
-    try:
-        result = subprocess.run(
-            ["jj", "describe", "-m", message], cwd=cwd, capture_output=True, text=True, timeout=30
-        )
-        if result.returncode == 0:
-            return True, result.stdout.strip()
-        else:
-            return False, result.stderr.strip()
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
-        return False, str(e)
+    backend = detect_vcs_backend(cwd)
+    if backend:
+        return backend.commit_changes(message)
+    else:
+        return False, "VCSリポジトリが見つかりません"
 
 
 
@@ -236,7 +216,7 @@ def create_claude_settings_dir(target_path: Path) -> Path:
     return claude_dir
 
 
-def get_existing_settings(settings_file: Path) -> dict:
+def get_existing_settings(settings_file: Path) -> dict[str, Any]:
     """既存の設定ファイルを読み込む。存在しない場合は空の辞書を返す。"""
     if settings_file.exists():
         try:
@@ -248,7 +228,7 @@ def get_existing_settings(settings_file: Path) -> dict:
     return {}
 
 
-def create_hook_settings() -> dict:
+def create_hook_settings() -> dict[str, Any]:
     """フック設定を生成する。"""
     settings = {
         "hooks": {
@@ -274,7 +254,7 @@ def create_hook_settings() -> dict:
     return settings
 
 
-def merge_settings(existing: dict, new_settings: dict) -> dict:
+def merge_settings(existing: dict[str, Any], new_settings: dict[str, Any]) -> dict[str, Any]:
     """既存の設定と新しい設定を安全にマージする。"""
     import copy
 
@@ -1040,8 +1020,8 @@ def summarize() -> None:
     LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
 
     try:
-        if not is_jj_repository(cwd):
-            msg = "Jujutsuリポジトリではありません。スキップします。" if LANGUAGE == "japanese" else "Not a Jujutsu repository. Skipping."
+        if not is_vcs_repository(cwd):
+            msg = "VCSリポジトリではありません。スキップします。" if LANGUAGE == "japanese" else "Not a VCS repository. Skipping."
             console.print(f"[red]{msg}[/red]")
             sys.exit(0)
 
@@ -1101,13 +1081,6 @@ def summarize() -> None:
         sys.exit(1)
 
 
-def is_jj_repository(cwd: str) -> bool:
-    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
-    try:
-        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
 
 
 def check_safety_conditions(cwd: str) -> List[str]:
@@ -1163,12 +1136,12 @@ def organize(
     cwd = os.getcwd()
     language = os.environ.get("JJ_HOOK_LANGUAGE", "japanese")
 
-    # Jujutsuリポジトリかチェック
-    if not is_jj_repository(cwd):
+    # VCSリポジトリかチェック
+    if not is_vcs_repository(cwd):
         msg = (
-            "Jujutsuリポジトリではありません。"
+            "VCSリポジトリではありません。"
             if language == "japanese"
-            else "Not a Jujutsu repository."
+            else "Not a VCS repository."
         )
         console.print(f"[red]{msg}[/red]")
         sys.exit(1)

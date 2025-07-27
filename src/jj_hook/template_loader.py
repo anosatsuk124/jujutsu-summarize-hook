@@ -2,12 +2,13 @@
 
 import os
 from pathlib import Path
+from typing import Optional
 
 
 class TemplateLoader:
     """プロンプトテンプレートを読み込み、変数を置換するクラス。"""
 
-    def __init__(self, templates_dir: Path = None):
+    def __init__(self, templates_dir: Optional[Path] = None):
         """初期化。"""
         if templates_dir is None:
             # デフォルトはこのファイルと同じディレクトリのtemplatesフォルダ
@@ -15,7 +16,7 @@ class TemplateLoader:
         else:
             self.templates_dir = templates_dir
 
-    def load_template(self, template_name: str, **kwargs) -> str:
+    def load_template(self, template_name: str, **kwargs: str) -> str:
         """
         テンプレートを読み込み、変数を置換して返す。
 
@@ -57,7 +58,7 @@ class TemplateLoader:
 template_loader = TemplateLoader()
 
 
-def load_template(template_name: str, **kwargs) -> str:
+def load_template(template_name: str, **kwargs: str) -> str:
     """
     テンプレートを読み込む便利関数。
 

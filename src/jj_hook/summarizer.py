@@ -12,6 +12,7 @@ import litellm
 from pydantic import BaseModel
 
 from .template_loader import load_template
+from .vcs_backend import VCSBackend, detect_vcs_backend
 
 
 class SummaryConfig(BaseModel):
@@ -24,58 +25,55 @@ class SummaryConfig(BaseModel):
 
 
 class JujutsuSummarizer:
-    """Jujutsuリポジトリの変更をサマリーするクラス。"""
+    """VCSリポジトリの変更をサマリーするクラス（JujutsuとGitの両方に対応）。"""
 
-    def __init__(self, config: Optional[SummaryConfig] = None) -> None:
+    def __init__(self, config: Optional[SummaryConfig] = None, vcs_backend: Optional[VCSBackend] = None) -> None:
         """初期化。"""
         self.config = config or SummaryConfig()
+        self.vcs_backend = vcs_backend
 
         # 環境変数からモデルを上書き
         if model_env := os.environ.get("JJ_HOOK_MODEL"):
             self.config.model = model_env
 
+    def _get_vcs_backend(self, cwd: str) -> VCSBackend:
+        """VCSバックエンドを取得する。"""
+        if self.vcs_backend:
+            return self.vcs_backend
+        
+        backend = detect_vcs_backend(cwd)
+        if not backend:
+            raise ValueError(f"VCSリポジトリが見つかりません: {cwd}")
+        return backend
+
     def get_jj_status(self, cwd: str) -> str:
-        """jj statusコマンドの出力を取得する。"""
-        try:
-            result = subprocess.run(
-                ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
-            )
-            if result.returncode == 0:
-                return result.stdout.strip()
-            else:
-                return f"jj status failed: {result.stderr}"
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
-            return f"jj status error: {str(e)}"
+        """statusコマンドの出力を取得する（下位互換用）。"""
+        backend = self._get_vcs_backend(cwd)
+        return backend.get_status()
 
     def get_jj_diff(self, cwd: str) -> str:
-        """jj diffコマンドの出力を取得する。"""
-        try:
-            result = subprocess.run(
-                ["jj", "diff"], cwd=cwd, capture_output=True, text=True, timeout=30
-            )
-            if result.returncode == 0:
-                # diffが大きすぎる場合は切り詰める
-                diff_output = result.stdout.strip()
-                if len(diff_output) > 5000:
-                    diff_output = diff_output[:5000] + "\n... (切り詰められました)"
-                return diff_output
-            else:
-                return f"jj diff failed: {result.stderr}"
-        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
-            return f"jj diff error: {str(e)}"
+        """diffコマンドの出力を取得する（下位互換用）。"""
+        backend = self._get_vcs_backend(cwd)
+        return backend.get_diff()
 
     def generate_commit_summary(self, cwd: str) -> Tuple[bool, str]:
         """
-        Jujutsuリポジトリの変更に基づいてコミットメッセージを生成する。
+        VCSリポジトリの変更に基づいてコミットメッセージを生成する。
 
         Returns:
             (success, message): 成功フラグとメッセージ
         """
-        status_output = self.get_jj_status(cwd)
-        diff_output = self.get_jj_diff(cwd)
+        backend = self._get_vcs_backend(cwd)
+        
+        # 変更があるかチェック
+        if not backend.has_uncommitted_changes():
+            return False, "変更がありません"
+        
+        status_output = backend.get_status()
+        diff_output = backend.get_diff()
 
-        # 変更がない場合はスキップ
-        if "No changes" in status_output or not diff_output.strip():
+        # 変更がない場合はスキップ（追加チェック）
+        if not diff_output.strip():
             return False, "変更がありません"
 
         # プロンプトを構築
@@ -182,7 +180,7 @@ class CommitMetrics:
 class ExtendedCommitMetrics(CommitMetrics):
     """拡張されたコミットメトリクス情報"""
 
-    modified_files: List[str] = None  # 変更されたファイルのリスト
+    modified_files: Optional[List[str]] = None  # 変更されたファイルのリスト
     commit_time: Optional[str] = None  # コミット時刻
 
 
@@ -200,9 +198,10 @@ class SquashProposal:
 class CommitOrganizer:
     """コミット履歴を整理するクラス。"""
 
-    def __init__(self, config: Optional[SummaryConfig] = None) -> None:
+    def __init__(self, config: Optional[SummaryConfig] = None, vcs_backend: Optional[VCSBackend] = None) -> None:
         """初期化。"""
         self.config = config or SummaryConfig()
+        self.vcs_backend = vcs_backend
 
         # 環境変数からモデルを上書き
         if model_env := os.environ.get("JJ_HOOK_MODEL"):
@@ -211,69 +210,47 @@ class CommitOrganizer:
         # 設定可能なパラメータ
         self.tiny_threshold = 5
         self.small_threshold = 20
-        self.exclude_patterns = []
+        self.exclude_patterns: list[str] = []
         self.aggressive_mode = False
+
+    def _get_vcs_backend(self, cwd: str) -> VCSBackend:
+        """VCSバックエンドを取得する。"""
+        if self.vcs_backend:
+            return self.vcs_backend
+        
+        backend = detect_vcs_backend(cwd)
+        if not backend:
+            raise ValueError(f"VCSリポジトリが見つかりません: {cwd}")
+        return backend
 
     def get_commit_log(self, cwd: str, limit: int = 20) -> Tuple[bool, str]:
         """コミット履歴を取得する。"""
-        try:
-            result = subprocess.run(
-                ["jj", "log", "-r", "present(@)::heads(main)", "--limit", str(limit), "--no-graph"],
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=15,
-            )
-            if result.returncode == 0:
-                return True, result.stdout.strip()
-            else:
-                return False, f"jj log failed: {result.stderr}"
-        except Exception as e:
-            return False, f"jj log error: {str(e)}"
+        backend = self._get_vcs_backend(cwd)
+        return backend.get_commit_log(limit)
 
-    def get_commit_metrics(self, cwd: str, commit_ids: List[str]) -> List[CommitMetrics]:
+    def get_commit_metrics(self, cwd: str, commit_ids: List[str]) -> List[ExtendedCommitMetrics]:
         """複数のコミットのメトリクス情報を取得する。"""
-        metrics_list = []
+        backend = self._get_vcs_backend(cwd)
+        metrics_list: List[ExtendedCommitMetrics] = []
 
         for commit_id in commit_ids:
             try:
                 # コミットメッセージ取得
-                msg_result = subprocess.run(
-                    ["jj", "log", "-r", commit_id, "-T", "description"],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
+                msg_success, message = backend.get_commit_message(commit_id)
+                if not msg_success:
+                    message = f"取得失敗: {message}"
 
                 # コミット差分の詳細取得（数値データあり）
-                diff_result = subprocess.run(
-                    ["jj", "diff", "-r", commit_id, "--stat"],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
+                diff_success, diff_stat = backend.get_commit_diff_stat(commit_id)
+                if not diff_success:
+                    diff_stat = ""
 
                 # ファイル一覧取得
-                files_result = subprocess.run(
-                    ["jj", "diff", "-r", commit_id, "--name-only"],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-
-                if msg_result.returncode == 0 and diff_result.returncode == 0:
-                    message = msg_result.stdout.strip()
-                    diff_stat = diff_result.stdout.strip()
-
-                    # ファイルリストを取得（失敗しても続行）
+                files_success, modified_files = backend.get_changed_files(commit_id)
+                if not files_success:
                     modified_files = []
-                    if files_result.returncode == 0:
-                        modified_files = [
-                            f.strip() for f in files_result.stdout.split("\n") if f.strip()
-                        ]
+
+                if msg_success and diff_success:
 
                     # 差分統計を解析
                     files_changed, lines_added, lines_deleted = self._parse_diff_stat(diff_stat)
@@ -311,7 +288,7 @@ class CommitOrganizer:
 
         return metrics_list
 
-    def detect_tiny_commits(self, metrics_list: List[CommitMetrics]) -> List[str]:
+    def detect_tiny_commits(self, metrics_list: List[ExtendedCommitMetrics]) -> List[str]:
         """極小サイズのコミットを検出する。"""
         tiny_commits = []
 
@@ -398,7 +375,7 @@ class CommitOrganizer:
         message_lower = message.lower()
         return any(pattern in message_lower for pattern in fix_patterns)
 
-    def detect_related_commits(self, metrics_list: List[CommitMetrics]) -> List[List[str]]:
+    def detect_related_commits(self, metrics_list: List[ExtendedCommitMetrics]) -> List[List[str]]:
         """関連するコミット群を検出する。"""
         related_groups = []
         processed_commits = set()
@@ -426,7 +403,7 @@ class CommitOrganizer:
 
         return related_groups
 
-    def _are_commits_related(self, commit1: CommitMetrics, commit2: CommitMetrics) -> bool:
+    def _are_commits_related(self, commit1: ExtendedCommitMetrics, commit2: ExtendedCommitMetrics) -> bool:
         """2つのコミットが関連しているかどうか判定する。"""
         # 両方とも小さいコミットの場合
         if commit1.size_category in ["tiny", "small"] and commit2.size_category in [
@@ -442,7 +419,8 @@ class CommitOrganizer:
                     return True
 
                 # 同一ディレクトリの変更
-                if self._are_in_same_directory(commit1.modified_files, commit2.modified_files):
+                if (commit1.modified_files is not None and commit2.modified_files is not None and
+                    self._are_in_same_directory(commit1.modified_files, commit2.modified_files)):
                     return True
 
             # メッセージの類似度をチェック
@@ -466,7 +444,7 @@ class CommitOrganizer:
         self, commit1: ExtendedCommitMetrics, commit2: ExtendedCommitMetrics
     ) -> float:
         """2つのコミット間のファイル重複度を計算する。"""
-        if not commit1.modified_files or not commit2.modified_files:
+        if commit1.modified_files is None or commit2.modified_files is None:
             return 0.0
 
         set1 = set(commit1.modified_files)
@@ -512,7 +490,7 @@ class CommitOrganizer:
         return similarity
 
     def generate_rule_based_proposals(
-        self, metrics_list: List[CommitMetrics]
+        self, metrics_list: List[ExtendedCommitMetrics]
     ) -> List[SquashProposal]:
         """ルールベースでスカッシュ提案を生成する。"""
         proposals = []
@@ -794,59 +772,49 @@ class CommitOrganizer:
             if len(proposal.source_commits) < 2:
                 return False, "統合対象のコミットが不十分です"
 
+            backend = self._get_vcs_backend(cwd)
             target = proposal.target_commit
             sources = [c for c in proposal.source_commits if c != target]
 
-            # 各ソースコミットを順次ターゲットに統合
-            for source in sources:
-                result = subprocess.run(
-                    ["jj", "squash", "--from", source, "--into", target],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
-
-                if result.returncode != 0:
-                    return False, f"スカッシュ失敗: {result.stderr}"
-
-            # コミットメッセージの更新
-            if proposal.suggested_message:
-                result = subprocess.run(
-                    ["jj", "describe", "-r", target, "-m", proposal.suggested_message],
-                    cwd=cwd,
-                    capture_output=True,
-                    text=True,
-                    timeout=15,
-                )
-
-                if result.returncode != 0:
-                    return False, f"メッセージ更新失敗: {result.stderr}"
-
-            return True, "スカッシュが完了しました"
+            # VCSバックエンドによって処理を分岐
+            from .jujutsu_backend import JujutsuBackend
+            from .git_backend import GitBackend
+            
+            if isinstance(backend, JujutsuBackend):
+                # Jujutsuバックエンドの場合
+                for source in sources:
+                    success, message = backend.squash_commits(source, target, proposal.suggested_message)
+                    if not success:
+                        return False, message
+                return True, "スカッシュが完了しました"
+            elif isinstance(backend, GitBackend):
+                # Gitバックエンドの場合（簡易実装）
+                return backend.squash_commits(proposal.source_commits, proposal.suggested_message)
+            else:
+                return False, "スカッシュ機能がサポートされていません"
 
         except Exception as e:
             return False, f"実行エラー: {str(e)}"
 
     def create_backup_bookmark(self, cwd: str) -> Tuple[bool, str]:
-        """バックアップブックマークを作成する。"""
+        """バックアップブックマーク/ブランチを作成する。"""
         try:
             from datetime import datetime
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_name = f"backup_before_organize_{timestamp}"
 
-            result = subprocess.run(
-                ["jj", "bookmark", "create", backup_name, "-r", "@"],
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-
-            if result.returncode == 0:
-                return True, backup_name
+            backend = self._get_vcs_backend(cwd)
+            
+            # VCSバックエンドによって処理を分岐
+            from .jujutsu_backend import JujutsuBackend
+            from .git_backend import GitBackend
+            
+            if isinstance(backend, JujutsuBackend):
+                return backend.create_backup_bookmark(backup_name)
+            elif isinstance(backend, GitBackend):
+                return backend.create_backup_branch(backup_name)
             else:
-                return False, result.stderr.strip()
+                return False, "バックアップ作成がサポートされていません"
         except Exception as e:
             return False, str(e)

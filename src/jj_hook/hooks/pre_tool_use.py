@@ -15,37 +15,27 @@ from pathlib import Path
 LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
 
 from ..template_loader import load_template
+from ..vcs_backend import detect_vcs_backend, is_vcs_repository
 
 
 def is_jj_repository(cwd: str) -> bool:
-    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
-    try:
-        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
-        return result.returncode == 0
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+    """現在のディレクトリがVCSリポジトリかどうかチェックする（下位互換用）。"""
+    return is_vcs_repository(cwd)
 
 
 def create_new_revision(cwd: str, revision_description: str) -> tuple[bool, str]:
-    """新しいリビジョンを作成する。"""
+    """新しいリビジョン/ブランチを作成する。"""
     try:
-        # jj new -m でリビジョン作成とコミットメッセージ設定を同時に行う
-        result = subprocess.run(
-            ["jj", "new", "-m", revision_description],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=15,
-        )
-        if result.returncode == 0:
-            return True, result.stdout.strip()
+        backend = detect_vcs_backend(cwd)
+        if backend:
+            return backend.create_branch("temp-branch", revision_description)
         else:
-            return False, result.stderr.strip()
-    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
+            return False, "VCSリポジトリが見つかりません"
+    except Exception as e:
         return False, str(e)
 
 
-def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
+def should_create_revision_for_tool(tool_name: str, tool_input: dict[str, str]) -> bool:
     """ツールの種類と入力から新しいリビジョンを作成すべきかどうか判断する。"""
     # 対象ツール以外はスキップ
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
@@ -65,7 +55,7 @@ def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
     return True
 
 
-def generate_revision_description_from_tool(tool_name: str, tool_input: dict, cwd: str) -> str:
+def generate_revision_description_from_tool(tool_name: str, tool_input: dict[str, str], cwd: str) -> str:
     """ツール情報から作業内容の説明を生成する。"""
     file_path = tool_input.get("file_path", "")
     file_name = Path(file_path).name if file_path else ""
@@ -118,9 +108,9 @@ def main() -> None:
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         sys.exit(0)
 
-    # Jujutsuリポジトリかチェック
+    # VCSリポジトリかチェック
     if not is_jj_repository(cwd):
-        sys.stderr.write("Jujutsuリポジトリではありません。スキップします。\n")
+        sys.stderr.write("VCSリポジトリではありません。スキップします。\n")
         sys.exit(0)
 
     # 新しいリビジョンを作成すべきかチェック
