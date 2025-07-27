@@ -348,6 +348,200 @@ class CommitOrganizer:
                 
         return metrics_list
     
+    def detect_tiny_commits(self, metrics_list: List[CommitMetrics]) -> List[str]:
+        """極小サイズのコミットを検出する。"""
+        tiny_commits = []
+        
+        for metrics in metrics_list:
+            # サイズベース判定
+            if metrics.size_category == "tiny":
+                tiny_commits.append(metrics.commit_id)
+                continue
+                
+            # メッセージパターンベース判定
+            if self._is_trivial_commit_message(metrics.message):
+                tiny_commits.append(metrics.commit_id)
+                continue
+                
+            # 特定パターン（タイポ修正など）
+            if self._is_fix_commit(metrics.message) and metrics.total_lines <= 10:
+                tiny_commits.append(metrics.commit_id)
+                
+        return tiny_commits
+    
+    def _is_trivial_commit_message(self, message: str) -> bool:
+        """些細なコミットメッセージかどうか判定する。"""
+        trivial_patterns = [
+            r'^(fix|Fix|FIX)$',
+            r'^(wip|WIP|tmp|TMP)(\s|$)',
+            r'^(typo|Typo|TYPO)',
+            r'^(format|Format|FORMAT)',
+            r'^(style|Style|STYLE)',
+            r'^(update|Update|UPDATE)$',
+            r'^(cleanup|Cleanup|CLEANUP)',
+            r'^(\.|,|;|:|!|\?)?\s*$',  # 記号のみ
+            r'^\s*\d+\s*$',  # 数字のみ
+            r'^\s*[a-zA-Z]\s*$',  # 単一文字
+        ]
+        
+        for pattern in trivial_patterns:
+            if re.match(pattern, message.strip()):
+                return True
+        
+        # 非常に短いメッセージ
+        if len(message.strip()) <= 3:
+            return True
+            
+        return False
+    
+    def _is_fix_commit(self, message: str) -> bool:
+        """修正系のコミットかどうか判定する。"""
+        fix_patterns = [
+            r'fix',
+            r'bugfix',
+            r'hotfix', 
+            r'patch',
+            r'correct',
+            r'repair',
+            r'typo',
+            r'error',
+            r'bug'
+        ]
+        
+        message_lower = message.lower()
+        return any(pattern in message_lower for pattern in fix_patterns)
+    
+    def detect_related_commits(self, metrics_list: List[CommitMetrics]) -> List[List[str]]:
+        """関連するコミット群を検出する。"""
+        related_groups = []
+        processed_commits = set()
+        
+        for i, metrics in enumerate(metrics_list):
+            if metrics.commit_id in processed_commits:
+                continue
+                
+            # 現在のコミットを開始点として関連コミットを探す
+            group = [metrics.commit_id]
+            processed_commits.add(metrics.commit_id)
+            
+            # 後続のコミットとの関連性をチェック
+            for j, other_metrics in enumerate(metrics_list[i+1:], i+1):
+                if other_metrics.commit_id in processed_commits:
+                    continue
+                    
+                if self._are_commits_related(metrics, other_metrics):
+                    group.append(other_metrics.commit_id)
+                    processed_commits.add(other_metrics.commit_id)
+            
+            # 2つ以上のコミットのグループのみを関連グループとする
+            if len(group) >= 2:
+                related_groups.append(group)
+                
+        return related_groups
+    
+    def _are_commits_related(self, commit1: CommitMetrics, commit2: CommitMetrics) -> bool:
+        """2つのコミットが関連しているかどうか判定する。"""
+        # 両方とも小さいコミットの場合
+        if (commit1.size_category in ["tiny", "small"] and 
+            commit2.size_category in ["tiny", "small"]):
+            
+            # メッセージの類似度をチェック
+            similarity = self._calculate_message_similarity(commit1.message, commit2.message)
+            if similarity > 0.6:  # 60%以上類似
+                return True
+                
+            # 両方が修正系コミットの場合
+            if (self._is_fix_commit(commit1.message) and 
+                self._is_fix_commit(commit2.message)):
+                return True
+                
+            # 両方が些細なコミットメッセージの場合
+            if (self._is_trivial_commit_message(commit1.message) and 
+                self._is_trivial_commit_message(commit2.message)):
+                return True
+                
+        return False
+    
+    def _calculate_message_similarity(self, msg1: str, msg2: str) -> float:
+        """2つのコミットメッセージの類似度を計算する。"""
+        # 基本的な前処理
+        msg1_clean = msg1.lower().strip()
+        msg2_clean = msg2.lower().strip() 
+        
+        # SequenceMatcherで類似度計算
+        similarity = SequenceMatcher(None, msg1_clean, msg2_clean).ratio()
+        return similarity
+    
+    def generate_rule_based_proposals(self, metrics_list: List[CommitMetrics]) -> List[SquashProposal]:
+        """ルールベースでスカッシュ提案を生成する。"""
+        proposals = []
+        
+        # 極小コミットを検出
+        tiny_commits = self.detect_tiny_commits(metrics_list)
+        
+        # 関連コミット群を検出
+        related_groups = self.detect_related_commits(metrics_list)
+        
+        # 極小コミットを前のコミットと統合
+        for tiny_commit in tiny_commits:
+            # 対応するメトリクスを探す
+            tiny_metrics = None
+            tiny_index = -1
+            for i, metrics in enumerate(metrics_list):
+                if metrics.commit_id == tiny_commit:
+                    tiny_metrics = metrics
+                    tiny_index = i
+                    break
+            
+            if tiny_metrics and tiny_index > 0:
+                # 前のコミットと統合
+                target_commit = metrics_list[tiny_index - 1].commit_id
+                reason = f"極小コミット（{tiny_metrics.total_lines}行変更）を前のコミットと統合"
+                
+                # より適切なメッセージを提案
+                target_metrics = metrics_list[tiny_index - 1]
+                if self._is_trivial_commit_message(tiny_metrics.message):
+                    suggested_message = target_metrics.message
+                else:
+                    suggested_message = f"{target_metrics.message}と{tiny_metrics.message}の統合"
+                
+                proposal = SquashProposal(
+                    source_commits=[tiny_commit, target_commit],
+                    target_commit=target_commit,
+                    reason=reason,
+                    suggested_message=suggested_message,
+                    confidence_score=0.9
+                )
+                proposals.append(proposal)
+        
+        # 関連コミット群を統合
+        for group in related_groups:
+            if len(group) >= 2:
+                # 最初のコミットを統合先とする
+                target_commit = group[0]
+                source_commits = group
+                
+                # グループの特徴を分析
+                group_metrics = [m for m in metrics_list if m.commit_id in group]
+                total_lines = sum(m.total_lines for m in group_metrics)
+                
+                reason = f"関連する{len(group)}個のコミットを統合（合計{total_lines}行変更）"
+                
+                # 統合メッセージを生成
+                target_metrics = group_metrics[0]
+                suggested_message = target_metrics.message
+                
+                proposal = SquashProposal(
+                    source_commits=source_commits,
+                    target_commit=target_commit,
+                    reason=reason,
+                    suggested_message=suggested_message,
+                    confidence_score=0.8
+                )
+                proposals.append(proposal)
+        
+        return proposals
+    
     def _parse_diff_stat(self, diff_stat: str) -> Tuple[int, int, int]:
         """jj diff --statの出力を解析して数値を抽出する。"""
         files_changed = 0
