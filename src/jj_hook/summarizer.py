@@ -120,47 +120,6 @@ class JujutsuSummarizer:
             error_msg = f"サマリー生成エラー: {str(e)}" if self.config.prompt_language == "japanese" else f"Summary generation error: {str(e)}"
             return False, error_msg
     
-    def _build_japanese_prompt(self, status: str, diff: str) -> str:
-        """日本語のプロンプトを構築する。"""
-        return f"""
-以下のJujutsu (jj)リポジトリの変更内容から、簡潔で分かりやすいコミットメッセージを日本語で生成してください。
-
-## jj status:
-{status}
-
-## jj diff:
-{diff}
-
-## 要求事項:
-- 1行で簡潔に（50文字以内が理想）
-- 変更の内容を端的に表現
-- 技術的すぎない日常的な表現
-- プレフィックス（feat:, fix:など）は不要
-
-例: "ユーザー認証機能を追加", "バグ修正：ログイン時のエラー処理", "設定ファイルを更新"
-
-コミットメッセージのみを出力してください:"""
-    
-    def _build_english_prompt(self, status: str, diff: str) -> str:
-        """英語のプロンプトを構築する。"""
-        return f"""
-Generate a concise and clear commit message based on the following Jujutsu (jj) repository changes.
-
-## jj status:
-{status}
-
-## jj diff:
-{diff}
-
-## Requirements:
-- Keep it concise and under 50 characters if possible
-- Capture the essence of the changes
-- Use conventional style but don't include prefixes like feat:, fix:
-- Be specific but not overly technical
-
-Examples: "Add user authentication", "Fix login error handling", "Update configuration"
-
-Output only the commit message:"""
     
     def generate_branch_name(self, prompt: str) -> Tuple[bool, str]:
         """
