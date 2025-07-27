@@ -17,6 +17,7 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 - `cli.py` - Main CLI implementation with click framework
 - `summarizer.py` - LiteLLM integration for AI-powered commit messages
 - `config.py` - Configuration management with environment variables
+- `template_loader.py` - Template system for loading slash command prompts
 - `hooks/post_tool_use.py` - Hook for automatic commits after file edits
 - `hooks/user_prompt_submit.py` - Hook for automatic branch creation from prompts
 
