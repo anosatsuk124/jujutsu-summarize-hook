@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from .config import SummaryConfig
+from .summarizer import SummaryConfig
 from .git_backend import GitBackend
 from .template_loader import load_template
 

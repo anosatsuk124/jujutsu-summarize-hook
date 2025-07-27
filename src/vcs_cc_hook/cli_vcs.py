@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from .config import SummaryConfig
+from .summarizer import SummaryConfig
 from .vcs_backend import VCSBackend, detect_vcs_backend
 
 console = Console()
@@ -34,7 +34,7 @@ def get_vcs_backend(cwd: str, vcs_type: Optional[str] = None) -> Optional[VCSBac
         # 明示的に指定された場合
         if vcs_type == "git":
             from .git_backend import GitBackend
-            backend = GitBackend(cwd)
+            backend: VCSBackend = GitBackend(cwd)
             if backend.is_repository():
                 return backend
         elif vcs_type == "jj":

@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.prompt import Confirm
 from rich.text import Text
 
-from .config import SummaryConfig
+from .summarizer import SummaryConfig
 from .jujutsu_backend import JujutsuBackend
 from .template_loader import load_template
 
