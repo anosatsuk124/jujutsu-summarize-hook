@@ -117,7 +117,8 @@ class JujutsuSummarizer:
             return True, summary
             
         except Exception as e:
-            error_msg = f"サマリー生成エラー: {str(e)}" if self.config.prompt_language == "japanese" else f"Summary generation error: {str(e)}"
+            language = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+            error_msg = f"サマリー生成エラー: {str(e)}" if language == "japanese" else f"Summary generation error: {str(e)}"
             return False, error_msg
     
     
