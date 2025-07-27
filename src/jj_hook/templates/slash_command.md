@@ -18,8 +18,6 @@ Specifically:
 3. Propose organization using jj squash and jj describe
 4. Execute actual organization work after user confirmation with jj-commit-organizer
 
-For safety, please create a backup branch before starting work.
-
 ## Analysis Targets
 - Consecutive small modifications to the same file
 - Related features split across multiple commits
@@ -34,7 +32,6 @@ For safety, please create a backup branch before starting work.
 - **Reviewability**: Changes should be appropriately sized for understanding
 
 ## Safety Guidelines
-- Create backup branches before organization
 - Gradual organization (avoid massive changes at once)
 - Don't touch pushed commits
 - Always request confirmation before executing organization

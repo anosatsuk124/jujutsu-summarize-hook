@@ -113,7 +113,6 @@ Always request confirmation before executing organization, and proceed only afte
 ## Best Practices
 
 ### Safety
-- Create backup branches before organization
 - Gradual organization (avoid massive changes at once)
 - Don't touch pushed commits
 
