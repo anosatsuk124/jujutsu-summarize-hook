@@ -166,6 +166,16 @@ export JJ_HOOK_LANGUAGE="japanese"
 
 ## CLIコマンド
 
+### 要約 (AIによるコミット)
+
+```bash
+# コミットされていない変更をAIが要約してコミット
+jj-hook summarize
+
+# 特定のパスからの変更を要約（例: サブディレクトリ）
+jj-hook summarize --path ./src/my_module
+```
+
 ### 認証
 
 ```bash

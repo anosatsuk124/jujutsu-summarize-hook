@@ -206,6 +206,16 @@ The template system allows customization of AI prompts for different scenarios:
 
 ## CLI Commands
 
+### Summarize (AI-Powered Commit)
+
+```bash
+# Summarize uncommitted changes and create a commit using AI
+jj-hook summarize
+
+# Summarize from a specific path (e.g., a subdirectory)
+jj-hook summarize --path ./src/my_module
+```
+
 ### Authentication
 
 ```bash
