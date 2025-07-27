@@ -29,7 +29,7 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 ### Package Management
 - Uses `uv` for Python package management
 - Uses `mise` for environment management and task running
-- Python 3.9+ required
+- Python 3.12 (configured in `.mise.toml`), supports 3.9+
 
 ### Key Dependencies
 - `click` - CLI framework
