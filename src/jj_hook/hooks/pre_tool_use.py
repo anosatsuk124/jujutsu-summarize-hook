@@ -85,13 +85,17 @@ def generate_revision_description_from_tool(tool_name: str, tool_input: dict, cw
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
         pass
 
-    description = load_template(
-        "revision_description", 
-        tool_name=tool_name, 
-        file_name=file_name, 
-        file_path=file_path,
-        diff=diff_content
-    )
+    try:
+        description = load_template(
+            "revision_description", 
+            tool_name=tool_name, 
+            file_name=file_name, 
+            file_path=file_path,
+            content_hints=diff_content
+        )
+    except (FileNotFoundError, ValueError) as e:
+        # テンプレート読み込みに失敗した場合のフォールバック
+        description = f"{tool_name} {file_name}"
 
     return description.strip()
 
