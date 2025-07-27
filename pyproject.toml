@@ -3,9 +3,9 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "jj-hook"
+name = "vcs-cc-hook"
 version = "0.1.0"
-description = "Claude Code hooks for Jujutsu (jj) with AI-powered commit summaries"
+description = "Claude Code hooks for Git and Jujutsu with AI-powered commit summaries"
 readme = "README.md"
 license = { text = "Apache-2.0" }
 authors = [
@@ -39,11 +39,13 @@ dev = [
 ]
 
 [project.scripts]
-jj-hook = "jj_hook.cli:main"
+jj-cc-hook = "vcs_cc_hook.cli_jj:main"
+git-cc-hook = "vcs_cc_hook.cli_git:main"
+vcs-cc-hook = "vcs_cc_hook.cli_vcs:main"
 
 [project.urls]
-Homepage = "https://github.com/anosatsuk124/jujutsu-summarize-hook"
-Repository = "https://github.com/anosatsuk124/jujutsu-summarize-hook"
+Homepage = "https://github.com/anosatsuk124/vcs-cc-hook"
+Repository = "https://github.com/anosatsuk124/vcs-cc-hook"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jj_hook"]
