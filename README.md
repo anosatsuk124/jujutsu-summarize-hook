@@ -37,7 +37,6 @@ git clone https://github.com/anosatsuk124/jujutsu-summarize-hook.git
 cd jujutsu-summarize-hook
 uv tool install .
 ```
-```
 
 ### 3. Use anywhere you want (hooks/agents installation in a local directory)
 
