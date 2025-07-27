@@ -6,9 +6,14 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 
 - **Automatic New Commit Creation**: Automatically create new commits before file edits using `jj new`
 - **Automatic Commits**: Automatically commit with AI-generated summaries after file edits
+- **AI-Powered Commit History Organization**: Analyze and reorganize commit history using `jj-hook organize`
+- **Sub-agent Integration**: jj-commit-organizer sub-agent for intelligent commit management
+- **Slash Command Support**: `/jj-commit-organizer` command for quick access to commit organization
+- **Template System**: Customizable prompt templates for different languages and scenarios
 - **GitHub Copilot Integration**: Built-in support for GitHub Copilot with OAuth authentication
 - **Multi-language Support**: Support for both English and Japanese commit messages and branch names
 - **Multiple LLM Providers**: Support for OpenAI, Anthropic, GitHub Copilot, local models, and more
+- **Bulk Installation**: Install all components (hooks, sub-agents, slash commands) at once
 
 ## Requirements
 
