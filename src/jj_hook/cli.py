@@ -804,6 +804,295 @@ def install_slash_command(is_global: bool, path: Optional[Path]) -> None:
         sys.exit(1)
 
 
+@cli.command(name="install-all")
+@click.option(
+    "--global", "is_global",
+    is_flag=True,
+    help="グローバル設定にインストール"
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="実際の変更は行わず、変更内容のプレビューのみ表示"
+)
+@click.option(
+    "--path", 
+    "-p", 
+    type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=Path),
+    default=None,
+    help="インストール先のディレクトリパス（--globalと併用不可）"
+)
+def install_all(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
+    """jj-hook の全機能（hooks, sub-agent, slash command）を一括インストールする。"""
+    
+    # 言語設定の取得
+    language = os.environ.get("JJ_HOOK_LANGUAGE", "japanese")
+    
+    # インストール先の決定
+    if is_global and path:
+        error_msg = "エラー: --globalと--pathは同時に指定できません" if language == "japanese" else "Error: --global and --path cannot be used together"
+        console.print(f"[red]{error_msg}[/red]")
+        sys.exit(1)
+    
+    if is_global:
+        install_location = "グローバル設定" if language == "japanese" else "Global settings"
+    else:
+        target_path = path if path is not None else Path.cwd()
+        install_location = f"ローカル設定 ({target_path})" if language == "japanese" else f"Local settings ({target_path})"
+    
+    if language == "japanese":
+        console.print(Panel(
+            Text("🚀 jj-hook 一括インストールを開始します", style="bold blue"),
+            title="一括インストール",
+            border_style="blue"
+        ))
+        console.print(f"[blue]インストール先: {install_location}[/blue]")
+        console.print(f"[dim]DRY-RUNモード: {'有効' if dry_run else '無効'}[/dim]\n")
+    else:
+        console.print(Panel(
+            Text("🚀 Starting jj-hook bulk installation", style="bold blue"),
+            title="Bulk Installation",
+            border_style="blue"
+        ))
+        console.print(f"[blue]Install location: {install_location}[/blue]")
+        console.print(f"[dim]DRY-RUN mode: {'Enabled' if dry_run else 'Disabled'}[/dim]\n")
+    
+    installation_results = []
+    
+    try:
+        # 1. Hooks インストール
+        hooks_label = "1. フック設定" if language == "japanese" else "1. Hooks"
+        console.print(f"[cyan]{hooks_label}をインストール中...[/cyan]")
+        
+        try:
+            # hookのインストールロジックを実行
+            if not dry_run:
+                # 設定ファイルパスの決定
+                if is_global:
+                    settings_file = Path.home() / ".claude" / "settings.json"
+                else:
+                    target_path_hooks = path if path is not None else Path.cwd()
+                    claude_dir = create_claude_settings_dir(target_path_hooks)
+                    settings_file = claude_dir / "settings.json"
+                
+                # 既存設定の読み込み
+                existing_settings = get_existing_settings(settings_file)
+                
+                # 新しいフック設定を生成
+                hook_settings = create_hook_settings()
+                
+                # 設定をマージ
+                merged_settings = merge_settings(existing_settings, hook_settings)
+                
+                # 設定ファイルの親ディレクトリを作成
+                settings_file.parent.mkdir(parents=True, exist_ok=True)
+                
+                # 設定ファイルの書き込み
+                with open(settings_file, "w", encoding="utf-8") as f:
+                    json.dump(merged_settings, f, indent=2, ensure_ascii=False)
+                
+                hooks_result = "✅ 完了" if language == "japanese" else "✅ Completed"
+            else:
+                hooks_result = "📋 プレビュー" if language == "japanese" else "📋 Preview"
+                
+            installation_results.append(("Hooks", True, hooks_result))
+            console.print(f"  {hooks_result}")
+        except Exception as e:
+            error_msg = f"❌ エラー: {e}" if language == "japanese" else f"❌ Error: {e}"
+            installation_results.append(("Hooks", False, error_msg))
+            console.print(f"  {error_msg}")
+        
+        # 2. Sub-agent インストール
+        subagent_label = "2. サブエージェント" if language == "japanese" else "2. Sub-agent"
+        console.print(f"\n[cyan]{subagent_label}をインストール中...[/cyan]")
+        
+        try:
+            if not dry_run:
+                # sub-agentディレクトリの決定
+                if is_global:
+                    agents_dir = Path.home() / ".claude" / "agents"
+                else:
+                    target_path_agent = path if path is not None else Path.cwd()
+                    agents_dir = target_path_agent / ".claude" / "agents"
+                
+                # ディレクトリ作成
+                agents_dir.mkdir(parents=True, exist_ok=True)
+                
+                # サブエージェント定義ファイルのパス
+                agent_file = agents_dir / "jj-commit-organizer.md"
+                
+                # サブエージェント定義の内容を生成
+                if language == "japanese":
+                    agent_content = """---
+name: jj-commit-organizer
+description: jj log や jj diff を観察し、適切なコミット単位をjj squash や jj bookmark createなどを使って整形する専用エキスパート。コミット履歴の論理的整理とリファクタリングをプロアクティブに実行する。
+tools: Bash, Read, Grep, Glob
+---
+
+あなたはJujutsu VCS（jj）の専門家で、コミット履歴の整理とリファクタリングを担当します。
+
+## 役割と責任
+
+### 主要機能
+1. **コミット履歴の分析**: `jj log` でコミット履歴を確認し、問題を特定
+2. **差分の詳細調査**: `jj diff` で各コミットの変更内容を分析  
+3. **論理的整理の提案**: 関連するコミットをまとめ、適切な単位に再編成
+4. **自動整形の実行**: `jj squash` や `jj bookmark create` を使用した実際の整理
+
+### 分析対象
+- 同一ファイルへの連続した小さな修正
+- 関連する機能の複数回に分かれたコミット
+- 意味のないコミットメッセージ（"fix", "wip", "tmp"など）
+- タイポ修正やフォーマット変更の分離されたコミット
+- 論理的に一つの変更であるべき分散したコミット
+
+### 整理方針
+- **機能単位**: 一つの機能や修正は一つのコミットに
+- **論理的一貫性**: 関連する変更は同じコミットに統合
+- **明確なメッセージ**: 各コミットの目的が明確になるように
+- **レビュー可能性**: 変更が理解しやすい適切なサイズに
+
+常にコミット履歴の品質向上を目指し、将来のメンテナンスや協働を考慮した整理を行います。"""
+                else:  # english
+                    agent_content = """---
+name: jj-commit-organizer
+description: Specialized expert for observing jj log and jj diff, and organizing commits into appropriate units using jj squash and jj bookmark create. Proactively executes logical organization and refactoring of commit history.
+tools: Bash, Read, Grep, Glob
+---
+
+You are a Jujutsu VCS (jj) expert specializing in commit history organization and refactoring.
+
+## Role and Responsibilities
+
+### Core Functions
+1. **Commit History Analysis**: Review commit history with `jj log` and identify issues
+2. **Detailed Diff Investigation**: Analyze each commit's changes using `jj diff`
+3. **Logical Organization Proposals**: Group related commits and reorganize into appropriate units
+4. **Automated Cleanup Execution**: Perform actual organization using `jj squash` and `jj bookmark create`
+
+### Analysis Targets
+- Consecutive small modifications to the same file
+- Related features split across multiple commits
+- Meaningless commit messages ("fix", "wip", "tmp", etc.)
+- Separated typo fixes and formatting changes
+- Logically unified changes dispersed across commits
+
+### Organization Principles
+- **Feature Units**: One feature or fix should be one commit
+- **Logical Consistency**: Related changes should be integrated into the same commit
+- **Clear Messages**: Each commit's purpose should be evident
+- **Reviewability**: Changes should be appropriately sized for understanding
+
+Always aim to improve commit history quality, considering future maintenance and collaboration."""
+                
+                # ファイル書き込み
+                with open(agent_file, "w", encoding="utf-8") as f:
+                    f.write(agent_content)
+                
+                subagent_result = "✅ 完了" if language == "japanese" else "✅ Completed"
+            else:
+                subagent_result = "📋 プレビュー" if language == "japanese" else "📋 Preview"
+                
+            installation_results.append(("Sub-agent", True, subagent_result))
+            console.print(f"  {subagent_result}")
+        except Exception as e:
+            error_msg = f"❌ エラー: {e}" if language == "japanese" else f"❌ Error: {e}"
+            installation_results.append(("Sub-agent", False, error_msg))
+            console.print(f"  {error_msg}")
+        
+        # 3. Slash command インストール
+        slash_label = "3. Slash Command" if language == "japanese" else "3. Slash Command"
+        console.print(f"\n[cyan]{slash_label}をインストール中...[/cyan]")
+        
+        try:
+            if not dry_run:
+                # slash commandディレクトリの決定
+                if is_global:
+                    slash_commands_dir = Path.home() / ".claude" / "slash-commands"
+                else:
+                    target_path_slash = path if path is not None else Path.cwd()
+                    slash_commands_dir = target_path_slash / ".claude" / "slash-commands"
+                
+                # ディレクトリ作成
+                slash_commands_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Slash commandファイルのパス
+                command_file = slash_commands_dir / "jj-commit-organizer.md"
+                
+                # Slash commandの内容を取得
+                command_content = get_slash_command_content(language)
+                
+                # ファイル書き込み
+                with open(command_file, "w", encoding="utf-8") as f:
+                    f.write(command_content)
+                
+                slash_result = "✅ 完了" if language == "japanese" else "✅ Completed"
+            else:
+                slash_result = "📋 プレビュー" if language == "japanese" else "📋 Preview"
+                
+            installation_results.append(("Slash Command", True, slash_result))
+            console.print(f"  {slash_result}")
+        except Exception as e:
+            error_msg = f"❌ エラー: {e}" if language == "japanese" else f"❌ Error: {e}"
+            installation_results.append(("Slash Command", False, error_msg))
+            console.print(f"  {error_msg}")
+        
+        # 結果のサマリー表示
+        successful_count = sum(1 for _, success, _ in installation_results if success)
+        failed_count = len(installation_results) - successful_count
+        
+        if language == "japanese":
+            title = "🎉 一括インストール完了" if failed_count == 0 else "⚠️ 一括インストール結果"
+            summary_text = f"📊 インストール結果\n\n"
+            for component, success, result in installation_results:
+                status_icon = "✅" if success else "❌"
+                summary_text += f"{status_icon} {component}: {result}\n"
+            
+            summary_text += f"\n成功: {successful_count}/{len(installation_results)}件"
+            
+            if successful_count > 0:
+                summary_text += "\n\n🚀 使用可能な機能:"
+                if any(name == "Hooks" and success for name, success, _ in installation_results):
+                    summary_text += "\n• ファイル編集時の自動コミット"
+                if any(name == "Sub-agent" and success for name, success, _ in installation_results):
+                    summary_text += "\n• jj-commit-organizer サブエージェント"
+                if any(name == "Slash Command" and success for name, success, _ in installation_results):
+                    summary_text += "\n• /jj-commit-organizer コマンド"
+        else:
+            title = "🎉 Bulk Installation Complete" if failed_count == 0 else "⚠️ Bulk Installation Results"
+            summary_text = f"📊 Installation Results\n\n"
+            for component, success, result in installation_results:
+                status_icon = "✅" if success else "❌"
+                summary_text += f"{status_icon} {component}: {result}\n"
+            
+            summary_text += f"\nSuccess: {successful_count}/{len(installation_results)} components"
+            
+            if successful_count > 0:
+                summary_text += "\n\n🚀 Available Features:"
+                if any(name == "Hooks" and success for name, success, _ in installation_results):
+                    summary_text += "\n• Automatic commits on file edits"
+                if any(name == "Sub-agent" and success for name, success, _ in installation_results):
+                    summary_text += "\n• jj-commit-organizer sub-agent"
+                if any(name == "Slash Command" and success for name, success, _ in installation_results):
+                    summary_text += "\n• /jj-commit-organizer command"
+        
+        border_style = "green" if failed_count == 0 else "yellow"
+        console.print(Panel(
+            Text(summary_text, style="bold green" if failed_count == 0 else "bold yellow"),
+            title=title,
+            border_style=border_style
+        ))
+        
+        if dry_run:
+            dry_run_msg = "\n[yellow]--dry-run モードのため、実際の変更は行いませんでした[/yellow]" if language == "japanese" else "\n[yellow]--dry-run mode: No actual changes were made[/yellow]"
+            console.print(dry_run_msg)
+        
+    except Exception as e:
+        error_msg = f"一括インストール中にエラーが発生しました: {e}" if language == "japanese" else f"Error during bulk installation: {e}"
+        console.print(f"[red]{error_msg}[/red]")
+        sys.exit(1)
+
+
 @cli.command()
 @click.argument("provider", type=click.Choice(["github-copilot"]), required=False, default="github-copilot")
 @click.option("--check", "-c", is_flag=True, help="認証状態のみ確認")
