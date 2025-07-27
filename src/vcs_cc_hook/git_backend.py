@@ -1,7 +1,5 @@
 """Git VCSバックエンドの実装。"""
 
-import os
-from pathlib import Path
 from typing import Optional, Tuple
 
 from .vcs_backend import VCSBackend

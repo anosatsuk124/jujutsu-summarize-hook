@@ -79,7 +79,7 @@ def generate_revision_description_from_tool(
             file_path=file_path,
             content_hints=diff_content,
         )
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError):
         # テンプレート読み込みに失敗した場合のフォールバック
         description = f"{tool_name} {file_name}"
 

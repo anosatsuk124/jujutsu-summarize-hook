@@ -7,7 +7,6 @@ automatically commits changes to the Jujutsu repository with an AI-generated sum
 
 import json
 import os
-import subprocess
 import sys
 
 # 言語設定の取得

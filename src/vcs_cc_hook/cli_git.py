@@ -12,9 +12,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
-from .summarizer import SummaryConfig
 from .git_backend import GitBackend
-from .template_loader import load_template
+from .summarizer import SummaryConfig
 
 console = Console()
 
@@ -220,7 +219,7 @@ def summarize() -> None:
 
     try:
         backend = GitBackend(cwd)
-        
+
         if not backend.is_repository():
             msg = (
                 "Gitリポジトリではありません。スキップします。"
@@ -240,7 +239,7 @@ def summarize() -> None:
             sys.exit(0)
 
         console.print("[blue]AIがコミットメッセージを生成中...[/blue]")
-        
+
         try:
             from .summarizer import JujutsuSummarizer
 
@@ -248,7 +247,7 @@ def summarize() -> None:
             config = SummaryConfig()
             config.model = os.environ.get("GIT_CC_HOOK_MODEL", config.model)
             config.prompt_language = LANGUAGE
-            
+
             summarizer = JujutsuSummarizer(config)
             success, summary = summarizer.generate_commit_summary(cwd)
 

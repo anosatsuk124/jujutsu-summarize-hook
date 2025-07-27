@@ -1,9 +1,7 @@
 """VCS抽象化レイヤー。"""
 
-import os
 import subprocess
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Optional, Tuple
 
 

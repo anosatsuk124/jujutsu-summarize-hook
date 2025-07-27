@@ -56,7 +56,7 @@ def check_github_copilot_auth() -> tuple[bool, str]:
     try:
         import litellm
 
-        from jj_hook.summarizer import JujutsuSummarizer
+        from .summarizer import JujutsuSummarizer
 
         # 軽量なテストリクエストで認証状態を確認
         summarizer = JujutsuSummarizer()
@@ -93,7 +93,7 @@ def authenticate_github_copilot() -> bool:
     try:
         import litellm
 
-        from jj_hook.summarizer import JujutsuSummarizer
+        from .summarizer import JujutsuSummarizer
 
         console.print("\n[blue]GitHub Copilot認証を開始します...[/blue]")
 
@@ -174,7 +174,7 @@ def get_slash_command_content(language: str = "japanese") -> str:
     template_path = Path(__file__).parent / "templates" / "slash_command.md"
 
     try:
-        with open(template_path, "r", encoding="utf-8") as f:
+        with open(template_path, encoding="utf-8") as f:
             content = f.read()
 
         # Replace language placeholder
@@ -1039,7 +1039,7 @@ def summarize() -> None:
 
         console.print("[blue]AIがコミットメッセージを生成中...[/blue]")
         try:
-            from jj_hook.summarizer import JujutsuSummarizer
+            from .summarizer import JujutsuSummarizer
 
             summarizer = JujutsuSummarizer()
             success, summary = summarizer.generate_commit_summary(cwd)

@@ -10,19 +10,16 @@ from typing import Any, Optional
 import click
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Confirm
 from rich.text import Text
 
-from .summarizer import SummaryConfig
 from .jujutsu_backend import JujutsuBackend
-from .template_loader import load_template
 
 console = Console()
 
 
 def create_fallback_summary(cwd: str) -> str:
     """フォールバック用の簡単なサマリー生成。"""
-    LANGUAGE = os.environ.get("JJ_CC_HOOK_LANGUAGE", "japanese")
+    language = os.environ.get("JJ_CC_HOOK_LANGUAGE", "japanese")
     backend = JujutsuBackend(cwd)
     if backend.is_repository() and backend.has_uncommitted_changes():
         return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
@@ -223,11 +220,11 @@ def pre_tool_use() -> None:
 def summarize() -> None:
     """AIを使用して変更を要約し、Jujutsuリビジョンを作成する。"""
     cwd = os.getcwd()
-    LANGUAGE = os.environ.get("JJ_CC_HOOK_LANGUAGE", "japanese")
+    language = os.environ.get("JJ_CC_HOOK_LANGUAGE", "japanese")
 
     try:
         backend = JujutsuBackend(cwd)
-        
+
         if not backend.is_repository():
             msg = (
                 "Jujutsuリポジトリではありません。スキップします。"
@@ -247,7 +244,7 @@ def summarize() -> None:
             sys.exit(0)
 
         console.print("[blue]AIがリビジョン説明を生成中...[/blue]")
-        
+
         try:
             from .summarizer import JujutsuSummarizer
 

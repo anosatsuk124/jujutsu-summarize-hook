@@ -245,7 +245,7 @@ def summarize(vcs: Optional[str]) -> None:
 
     try:
         backend = get_vcs_backend(cwd, vcs)
-        
+
         if not backend:
             if vcs:
                 msg = (
@@ -274,9 +274,9 @@ def summarize(vcs: Optional[str]) -> None:
         # VCSタイプに応じたメッセージ
         vcs_name = "Git" if isinstance(backend, type(backend)) and "git" in str(type(backend)).lower() else "Jujutsu"
         action = "コミットメッセージ" if "git" in str(type(backend)).lower() else "リビジョン説明"
-        
+
         console.print(f"[blue]AIが{action}を生成中...[/blue]")
-        
+
         try:
             from .summarizer import JujutsuSummarizer
 
@@ -284,7 +284,7 @@ def summarize(vcs: Optional[str]) -> None:
             config = SummaryConfig()
             config.model = os.environ.get("VCS_CC_HOOK_MODEL", config.model)
             config.prompt_language = LANGUAGE
-            
+
             summarizer = JujutsuSummarizer(config)
             success, summary = summarizer.generate_commit_summary(cwd)
 
@@ -324,12 +324,12 @@ def detect() -> None:
     """現在のディレクトリのVCSタイプを検出・表示する。"""
     cwd = os.getcwd()
     backend = detect_vcs_backend(cwd)
-    
+
     if backend:
         vcs_type = "Jujutsu" if "jujutsu" in str(type(backend)).lower() else "Git"
         console.print(f"[green]検出されたVCS: {vcs_type}[/green]")
         console.print(f"[dim]パス: {cwd}[/dim]")
-        
+
         # 追加情報
         if backend.has_uncommitted_changes():
             console.print("[yellow]• 未コミットの変更があります[/yellow]")

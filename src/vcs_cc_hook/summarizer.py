@@ -3,7 +3,6 @@
 import json
 import os
 import re
-import subprocess
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
@@ -785,8 +784,8 @@ class CommitOrganizer:
             sources = [c for c in proposal.source_commits if c != target]
 
             # VCSバックエンドによって処理を分岐
-            from .jujutsu_backend import JujutsuBackend
             from .git_backend import GitBackend
+            from .jujutsu_backend import JujutsuBackend
 
             if isinstance(backend, JujutsuBackend):
                 # Jujutsuバックエンドの場合
@@ -817,8 +816,8 @@ class CommitOrganizer:
             backend = self._get_vcs_backend(cwd)
 
             # VCSバックエンドによって処理を分岐
-            from .jujutsu_backend import JujutsuBackend
             from .git_backend import GitBackend
+            from .jujutsu_backend import JujutsuBackend
 
             if isinstance(backend, JujutsuBackend):
                 return backend.create_backup_bookmark(backup_name)
