@@ -18,12 +18,34 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 ## Requirements
 
 - Python 3.9+
+- [uv](https://docs.astral.sh/uv/)
 - [Jujutsu (jj)](https://github.com/martinvonz/jj)
 - [Claude Code](https://claude.ai/code)
 - [mise](https://mise.jdx.dev/) (recommended)
-- [uv](https://docs.astral.sh/uv/) (recommended)
 
-## Installation
+## Quick Start
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/anosatsuk124/jujutsu-summarize-hook.git
+```
+
+### 2. Installation
+
+```bash
+cd jujutsu-summarize-hook
+uv tool install .
+```
+```
+
+### 3. Use anywhere you want (hooks/agents installation in a local directory)
+
+```bash
+jj-hook install-all
+```
+
+## Installation for development
 
 ### 1. Project Setup
 
