@@ -930,9 +930,10 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
         # 結果表示
         console.print(Panel(
             f"🎉 整理完了\n"
-            f"• 成功: {executed_count}件\n"
-            f"• 失敗: {failed_count}件\n"
-            f"• 総計: {len(proposals)}件の提案",
+            f"• 実行成功: {executed_count}件\n"
+            f"• 実行失敗: {failed_count}件\n"
+            f"• 選択済み: {len(selected_proposals)}件\n"
+            f"• 全提案数: {len(proposals)}件",
             title="実行結果",
             border_style="green" if failed_count == 0 else "yellow"
         ))
