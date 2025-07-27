@@ -81,50 +81,98 @@ def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
 
 def generate_revision_description_from_tool(tool_name: str, tool_input: dict) -> str:
     """ツール情報から作業内容の説明を生成する。"""
-    file_path = tool_input.get("file_path", "")
-    
-    # ファイル名から基本的な説明を作成
-    base_description = ""
-    if file_path:
-        file_name = Path(file_path).name
-        if tool_name == "Write":
-            base_description = f"{file_name}を作成" if LANGUAGE == "japanese" else f"Create {file_name}"
-        elif tool_name == "Edit":
-            base_description = f"{file_name}を修正" if LANGUAGE == "japanese" else f"Edit {file_name}"
-        elif tool_name == "MultiEdit":
-            base_description = f"{file_name}を更新" if LANGUAGE == "japanese" else f"Update {file_name}"
-    else:
-        if tool_name == "Write":
-            base_description = "新規ファイル作成" if LANGUAGE == "japanese" else "Create new file"
-        elif tool_name == "Edit":
-            base_description = "ファイル修正" if LANGUAGE == "japanese" else "Edit file"
-        elif tool_name == "MultiEdit":
-            base_description = "ファイル更新" if LANGUAGE == "japanese" else "Update file"
-    
-    # 内容から詳細を推測
-    content = tool_input.get("content", "") or tool_input.get("new_string", "")
-    if content:
-        content_lower = content.lower()
+    if load_template is None:
+        # フォールバックモード：従来のロジックを使用
+        file_path = tool_input.get("file_path", "")
         
-        # 特定のキーワードから作業内容を判断
-        if any(keyword in content_lower for keyword in ["function", "def ", "class"]):
-            base_description += " (関数・クラス追加)" if LANGUAGE == "japanese" else " (add functions/classes)"
-        elif any(keyword in content_lower for keyword in ["import", "require"]):
-            base_description += " (依存関係追加)" if LANGUAGE == "japanese" else " (add dependencies)"
-        elif any(keyword in content_lower for keyword in ["test", "spec"]):
-            base_description += " (テスト追加)" if LANGUAGE == "japanese" else " (add tests)"
-        elif any(keyword in content_lower for keyword in ["fix", "bug", "error"]):
-            base_description += " (バグ修正)" if LANGUAGE == "japanese" else " (bug fix)"
-        elif any(keyword in content_lower for keyword in ["feature", "新機能"]):
-            base_description += " (機能追加)" if LANGUAGE == "japanese" else " (add feature)"
-        elif any(keyword in content_lower for keyword in ["refactor", "リファクタ"]):
-            base_description += " (リファクタリング)" if LANGUAGE == "japanese" else " (refactoring)"
+        # ファイル名から基本的な説明を作成
+        base_description = ""
+        if file_path:
+            file_name = Path(file_path).name
+            if tool_name == "Write":
+                base_description = f"{file_name}を作成" if LANGUAGE == "japanese" else f"Create {file_name}"
+            elif tool_name == "Edit":
+                base_description = f"{file_name}を修正" if LANGUAGE == "japanese" else f"Edit {file_name}"
+            elif tool_name == "MultiEdit":
+                base_description = f"{file_name}を更新" if LANGUAGE == "japanese" else f"Update {file_name}"
+        else:
+            if tool_name == "Write":
+                base_description = "新規ファイル作成" if LANGUAGE == "japanese" else "Create new file"
+            elif tool_name == "Edit":
+                base_description = "ファイル修正" if LANGUAGE == "japanese" else "Edit file"
+            elif tool_name == "MultiEdit":
+                base_description = "ファイル更新" if LANGUAGE == "japanese" else "Update file"
+        
+        # 内容から詳細を推測
+        content = tool_input.get("content", "") or tool_input.get("new_string", "")
+        if content:
+            content_lower = content.lower()
+            
+            # 特定のキーワードから作業内容を判断
+            if any(keyword in content_lower for keyword in ["function", "def ", "class"]):
+                base_description += " (関数・クラス追加)" if LANGUAGE == "japanese" else " (add functions/classes)"
+            elif any(keyword in content_lower for keyword in ["import", "require"]):
+                base_description += " (依存関係追加)" if LANGUAGE == "japanese" else " (add dependencies)"
+            elif any(keyword in content_lower for keyword in ["test", "spec"]):
+                base_description += " (テスト追加)" if LANGUAGE == "japanese" else " (add tests)"
+            elif any(keyword in content_lower for keyword in ["fix", "bug", "error"]):
+                base_description += " (バグ修正)" if LANGUAGE == "japanese" else " (bug fix)"
+            elif any(keyword in content_lower for keyword in ["feature", "新機能"]):
+                base_description += " (機能追加)" if LANGUAGE == "japanese" else " (add feature)"
+            elif any(keyword in content_lower for keyword in ["refactor", "リファクタ"]):
+                base_description += " (リファクタリング)" if LANGUAGE == "japanese" else " (refactoring)"
+        
+        # 長すぎる場合は切り詰める
+        if len(base_description) > 60:
+            base_description = base_description[:57] + "..."
+        
+        return base_description
     
-    # 長すぎる場合は切り詰める
-    if len(base_description) > 60:
-        base_description = base_description[:57] + "..."
-    
-    return base_description
+    try:
+        # テンプレートモード
+        file_path = tool_input.get("file_path", "")
+        file_name = Path(file_path).name if file_path else ""
+        
+        # 内容解析のヒント生成
+        content = tool_input.get("content", "") or tool_input.get("new_string", "")
+        content_hints = ""
+        if content:
+            content_lower = content.lower()
+            hints = []
+            
+            if any(keyword in content_lower for keyword in ["function", "def ", "class"]):
+                hints.append("functions/classes")
+            if any(keyword in content_lower for keyword in ["import", "require"]):
+                hints.append("dependencies")
+            if any(keyword in content_lower for keyword in ["test", "spec"]):
+                hints.append("tests")
+            if any(keyword in content_lower for keyword in ["fix", "bug", "error"]):
+                hints.append("bug fix")
+            if any(keyword in content_lower for keyword in ["feature", "新機能"]):
+                hints.append("feature")
+            if any(keyword in content_lower for keyword in ["refactor", "リファクタ"]):
+                hints.append("refactoring")
+            
+            if hints:
+                content_hints = f"Content includes: {', '.join(hints)}"
+        
+        # テンプレートを使用して説明を生成
+        description = load_template(
+            "revision_description",
+            tool_name=tool_name,
+            file_name=file_name,
+            file_path=file_path,
+            content_hints=content_hints
+        )
+        
+        return description.strip()
+        
+    except Exception:
+        # テンプレート使用に失敗した場合はフォールバックモード
+        return generate_revision_description_from_tool.__wrapped__(tool_name, tool_input)
+
+# フォールバック用の元の関数を保存
+generate_revision_description_from_tool.__wrapped__ = lambda tool_name, tool_input: "Edit file"
 
 
 
