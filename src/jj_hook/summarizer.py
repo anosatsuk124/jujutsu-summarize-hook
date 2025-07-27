@@ -162,7 +162,8 @@ class JujutsuSummarizer:
             return True, branch_name
             
         except Exception as e:
-            error_msg = f"ブランチ名生成エラー: {str(e)}" if self.config.prompt_language == "japanese" else f"Branch name generation error: {str(e)}"
+            language = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+            error_msg = f"ブランチ名生成エラー: {str(e)}" if language == "japanese" else f"Branch name generation error: {str(e)}"
             return False, error_msg
 
 
