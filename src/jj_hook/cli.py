@@ -19,6 +19,60 @@ from .template_loader import load_template
 console = Console()
 
 
+def create_fallback_summary(cwd: str) -> str:
+    """フォールバック用の簡単なサマリー生成。"""
+    LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+    try:
+        result = subprocess.run(
+            ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0 and "No changes" not in result.stdout:
+            return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
+        else:
+            return ""
+    except Exception:
+        return ""
+
+
+def is_jj_repository(cwd: str) -> bool:
+    """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
+    try:
+        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def has_uncommitted_changes(cwd: str) -> bool:
+    """コミットされていない変更があるかチェックする。"""
+    try:
+        result = subprocess.run(
+            ["jj", "status"], cwd=cwd, capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            status_output = result.stdout.strip()
+            return "No changes" not in status_output and len(status_output) > 0
+        return False
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def commit_changes(cwd: str, message: str) -> tuple[bool, str]:
+    """変更をコミットする。"""
+    try:
+        result = subprocess.run(
+            ["jj", "describe", "-m", message], cwd=cwd, capture_output=True, text=True, timeout=30
+        )
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+        else:
+            return False, result.stderr.strip()
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
+        return False, str(e)
+
+
+
+
 def check_github_copilot_auth() -> tuple[bool, str]:
     """GitHub Copilot認証状態をチェックする。"""
     try:
