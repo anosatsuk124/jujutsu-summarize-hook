@@ -136,9 +136,21 @@ def get_project_root() -> Path:
 
 
 def get_slash_command_content(language: str = "japanese") -> str:
-    """Slash command用のMarkdown内容を生成する。"""
-    if language == "japanese":
-        return """jj-commit-organizerサブエージェントを使ってコミット履歴を分析し、適切に整理してください。
+    """Generate Markdown content for slash command from template file."""
+    from pathlib import Path
+    
+    template_path = Path(__file__).parent / "templates" / "slash_command.md"
+    
+    try:
+        with open(template_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        
+        # Replace language placeholder
+        return content.format(language=language)
+    except FileNotFoundError:
+        # Fallback to hardcoded content if template file not found
+        if language == "japanese":
+            return """jj-commit-organizerサブエージェントを使ってコミット履歴を分析し、適切に整理してください。
 
 jj log と jj diff でコミット履歴を確認し、関連するコミットをまとめたり、意味のあるコミットメッセージに変更するなど、論理的な整理を行ってください。
 
@@ -149,8 +161,8 @@ jj log と jj diff でコミット履歴を確認し、関連するコミット�
 4. ユーザーの確認後に実際の整理作業を実行
 
 安全のため、作業前にバックアップブランチの作成も行ってください。"""
-    else:  # english
-        return """Use the jj-commit-organizer sub-agent to analyze and organize the commit history appropriately.
+        else:  # english
+            return """Use the jj-commit-organizer sub-agent to analyze and organize the commit history appropriately.
 
 Please review the commit history using jj log and jj diff, then logically organize it by grouping related commits and creating meaningful commit messages.
 

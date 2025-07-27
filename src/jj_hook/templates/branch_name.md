@@ -1,4 +1,5 @@
 Please respond in {language}.
+Please write any messages in {language}.
 
 Generate an appropriate branch name from the user's prompt.
 

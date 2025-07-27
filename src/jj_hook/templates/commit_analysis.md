@@ -1,4 +1,5 @@
 Please respond in {language}.
+Please write any messages in {language}.
 
 Analyze the commit history and generate proposals to squash logically related commits.
 

@@ -1,4 +1,5 @@
 Please respond in {language}.
+Please write any messages in {language}.
 
 Generate a concise and clear commit message based on the following Jujutsu (jj) repository changes.
 
