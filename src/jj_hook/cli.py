@@ -13,6 +13,8 @@ from typing import Optional, List, Tuple
 import click
 import litellm
 from rich.console import Console
+
+from .template_loader import load_template
 from rich.panel import Panel
 from rich.text import Text
 from rich.spinner import Spinner
