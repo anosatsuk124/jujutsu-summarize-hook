@@ -173,6 +173,21 @@ jj-hook install --dry-run
 
 ### コミット履歴の整理
 
+#### Slash Commandを使用（推奨）
+Claude Codeで一番簡単にコミット整理を行う方法：
+
+```bash
+# Claude Codeで以下を入力
+/jj-commit-organizer
+```
+
+#### サブエージェントを直接指定
+```bash
+# Claude Codeで以下のように指示
+jj-commit-organizer サブエージェントを使ってコミット履歴を整理して
+```
+
+#### CLIコマンドで直接実行
 `organize` コマンドは jj-commit-organizer サブエージェントを使用してコミット履歴を分析・整理します：
 
 ```bash
