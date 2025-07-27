@@ -1,53 +1,41 @@
-#!/usr/bin/env python3
 """
-PreToolUse hook for creating new branches before file edits.
+PreToolUse hook for creating new revisions before file edits.
 
 This hook is triggered before Edit, Write, or MultiEdit tool calls and
-automatically creates a new Jujutsu branch with a descriptive name based on the intended changes.
+automatically creates a new Jujutsu revision with a descriptive name based on the intended changes.
 """
 
 import json
-import sys
-import subprocess
 import os
-import re
+import subprocess
+import sys
 from pathlib import Path
 
-# パッケージのインポートパスを追加
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+# 言語設定の取得
+LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
 
-try:
-    from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
-except ImportError:
-    # フォールバック：スクリプトが単体で実行された場合
-    sys.stderr.write("警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。\n")
+from ..template_loader import load_template
 
 
 def is_jj_repository(cwd: str) -> bool:
     """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
     try:
-        result = subprocess.run(
-            ["jj", "root"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
         return result.returncode == 0
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
         return False
 
 
-def create_new_branch(cwd: str, branch_description: str) -> tuple[bool, str]:
-    """新しいブランチを作成する。"""
+def create_new_revision(cwd: str, revision_description: str) -> tuple[bool, str]:
+    """新しいリビジョンを作成する。"""
     try:
-        # jj new -m でブランチ作成とコミットメッセージ設定を同時に行う
+        # jj new -m でリビジョン作成とコミットメッセージ設定を同時に行う
         result = subprocess.run(
-            ["jj", "new", "-m", branch_description],
+            ["jj", "new", "-m", revision_description],
             cwd=cwd,
             capture_output=True,
             text=True,
-            timeout=15
+            timeout=15,
         )
         if result.returncode == 0:
             return True, result.stdout.strip()
@@ -57,103 +45,59 @@ def create_new_branch(cwd: str, branch_description: str) -> tuple[bool, str]:
         return False, str(e)
 
 
-def should_create_branch_for_tool(tool_name: str, tool_input: dict) -> bool:
-    """ツールの種類と入力から新しいブランチを作成すべきかどうか判断する。"""
+def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
+    """ツールの種類と入力から新しいリビジョンを作成すべきかどうか判断する。"""
     # 対象ツール以外はスキップ
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         return False
-    
-    # ファイルパスから判断（一時ファイルや設定ファイルはスキップ）
+
+    # ファイルパスから判断（一時ファイルのみスキップ）
     file_path = tool_input.get("file_path", "")
     if file_path:
         # 一時ファイルや隠しファイルはスキップ
-        if any(pattern in file_path.lower() for pattern in [
-            "/tmp/", "/temp/", "/.claude/", "/.git/", 
-            ".tmp", ".temp", ".cache"
-        ]):
+        if any(
+            pattern in file_path.lower()
+            for pattern in ["/tmp/", "/temp/", "/.claude/", "/.git/", ".tmp", ".temp", ".cache"]
+        ):
             return False
-        
-        # 設定ファイルやドキュメントファイルは慎重に判断
-        if any(file_path.lower().endswith(ext) for ext in [
-            ".json", ".yaml", ".yml", ".toml", ".ini", 
-            ".md", ".txt", ".rst"
-        ]):
-            # 内容から判断（実装や機能追加であれば作成）
-            content = tool_input.get("content", "") or tool_input.get("new_string", "")
-            if content and any(keyword in content.lower() for keyword in [
-                "function", "class", "def ", "import", "export",
-                "implementation", "feature", "todo", "fixme"
-            ]):
-                return True
-            return False
-    
+
+    # その他のファイルは基本的に作成（READMEなどを含む）
     return True
 
 
-def generate_branch_description_from_tool(tool_name: str, tool_input: dict) -> str:
+def generate_revision_description_from_tool(tool_name: str, tool_input: dict, cwd: str) -> str:
     """ツール情報から作業内容の説明を生成する。"""
     file_path = tool_input.get("file_path", "")
+    file_name = Path(file_path).name if file_path else ""
     
-    # ファイル名から基本的な説明を作成
-    base_description = ""
-    if file_path:
-        file_name = Path(file_path).name
-        if tool_name == "Write":
-            base_description = f"{file_name}を作成"
-        elif tool_name == "Edit":
-            base_description = f"{file_name}を修正"
-        elif tool_name == "MultiEdit":
-            base_description = f"{file_name}を更新"
-    else:
-        if tool_name == "Write":
-            base_description = "新規ファイル作成"
-        elif tool_name == "Edit":
-            base_description = "ファイル修正"
-        elif tool_name == "MultiEdit":
-            base_description = "ファイル更新"
-    
-    # 内容から詳細を推測
-    content = tool_input.get("content", "") or tool_input.get("new_string", "")
-    if content:
-        content_lower = content.lower()
-        
-        # 特定のキーワードから作業内容を判断
-        if any(keyword in content_lower for keyword in ["function", "def ", "class"]):
-            base_description += " (関数・クラス追加)"
-        elif any(keyword in content_lower for keyword in ["import", "require"]):
-            base_description += " (依存関係追加)"
-        elif any(keyword in content_lower for keyword in ["test", "spec"]):
-            base_description += " (テスト追加)"
-        elif any(keyword in content_lower for keyword in ["fix", "bug", "error"]):
-            base_description += " (バグ修正)"
-        elif any(keyword in content_lower for keyword in ["feature", "新機能"]):
-            base_description += " (機能追加)"
-        elif any(keyword in content_lower for keyword in ["refactor", "リファクタ"]):
-            base_description += " (リファクタリング)"
-    
-    # 長すぎる場合は切り詰める
-    if len(base_description) > 60:
-        base_description = base_description[:57] + "..."
-    
-    return base_description
-
-
-def has_uncommitted_changes(cwd: str) -> bool:
-    """未コミットの変更があるかチェックする。"""
+    # jj diffを取得
+    diff_content = ""
     try:
         result = subprocess.run(
-            ["jj", "status"],
+            ["jj", "diff"],
             cwd=cwd,
             capture_output=True,
             text=True,
             timeout=10
         )
         if result.returncode == 0:
-            status_output = result.stdout.strip()
-            return "No changes" not in status_output and len(status_output) > 0
-        return False
+            diff_content = result.stdout
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
-        return False
+        pass
+
+    try:
+        description = load_template(
+            "revision_description", 
+            tool_name=tool_name, 
+            file_name=file_name, 
+            file_path=file_path,
+            content_hints=diff_content
+        )
+    except (FileNotFoundError, ValueError) as e:
+        # テンプレート読み込みに失敗した場合のフォールバック
+        description = f"{tool_name} {file_name}"
+
+    return description.strip()
 
 
 def main() -> None:
@@ -164,44 +108,39 @@ def main() -> None:
     except json.JSONDecodeError as e:
         sys.stderr.write(f"JSONデコードエラー: {e}\n")
         sys.exit(1)
-    
+
     # フック情報の取得
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
     cwd = input_data.get("cwd", os.getcwd())
-    
+
     # 対象のツールかチェック
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         sys.exit(0)
-    
+
     # Jujutsuリポジトリかチェック
     if not is_jj_repository(cwd):
         sys.stderr.write("Jujutsuリポジトリではありません。スキップします。\n")
         sys.exit(0)
-    
-    # 新しいブランチを作成すべきかチェック
-    if not should_create_branch_for_tool(tool_name, tool_input):
-        sys.stdout.write("一時ファイルまたは設定ファイルのため、新しいブランチは作成しません。\n")
+
+    # 新しいリビジョンを作成すべきかチェック
+    if not should_create_revision_for_tool(tool_name, tool_input):
+        sys.stdout.write("一時ファイルのため、新しいリビジョンは作成しません。\n")
         sys.exit(0)
-    
-    # 既に未コミットの変更がある場合はスキップ（作業中のブランチを継続）
-    if has_uncommitted_changes(cwd):
-        sys.stdout.write("未コミットの変更があるため、新しいブランチは作成しません。\n")
-        sys.exit(0)
-    
-    # ブランチの説明を生成
-    branch_description = generate_branch_description_from_tool(tool_name, tool_input)
-    
-    # ブランチ作成実行
-    branch_success, branch_result = create_new_branch(cwd, branch_description)
-    
-    if branch_success:
-        sys.stdout.write(f"🌟 新しいブランチを作成しました: {branch_description}\n")
-        if branch_result:
-            sys.stdout.write(f"詳細: {branch_result}\n")
+
+    # リビジョンの説明を生成
+    revision_description = generate_revision_description_from_tool(tool_name, tool_input, cwd)
+
+    # リビジョン作成実行
+    revision_success, revision_result = create_new_revision(cwd, revision_description)
+
+    if revision_success:
+        sys.stdout.write(f"🌟 新しいリビジョンを作成しました: {revision_description}\n")
+        if revision_result:
+            sys.stdout.write(f"詳細: {revision_result}\n")
     else:
-        # ブランチ作成に失敗してもエラーにはしない（警告のみ）
-        sys.stderr.write(f"⚠️  ブランチ作成に失敗しました: {branch_result}\n")
+        # リビジョン作成に失敗してもエラーにはしない（警告のみ）
+        sys.stderr.write(f"⚠️  リビジョン作成に失敗しました: {revision_result}\n")
         # 通常は exit(0) でツール処理を続行
         sys.exit(0)
 

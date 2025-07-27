@@ -3,3 +3,5 @@ This directory contains the documentation for Anthropic's Claude Code, which is 
 This directory's contents are belonging to `Anthropic` and we do not have any rights and claim over it.
 
 - ./hooks.md: <https://docs.anthropic.com/en/docs/claude-code/hooks.md>
+- ./sub-agents.md: <https://docs.anthropic.com/en/docs/claude-code/sub-agents.md>
+- ./slash-commands.md <https://docs.anthropic.com/en/docs/claude-code/slash-commands.md>

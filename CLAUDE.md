@@ -17,6 +17,7 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 - `cli.py` - Main CLI implementation with click framework
 - `summarizer.py` - LiteLLM integration for AI-powered commit messages
 - `config.py` - Configuration management with environment variables
+- `template_loader.py` - Template system for loading slash command prompts
 - `hooks/post_tool_use.py` - Hook for automatic commits after file edits
 - `hooks/user_prompt_submit.py` - Hook for automatic branch creation from prompts
 
@@ -28,7 +29,7 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 ### Package Management
 - Uses `uv` for Python package management
 - Uses `mise` for environment management and task running
-- Python 3.9+ required
+- Python 3.12 (configured in `.mise.toml`), supports 3.9+
 
 ### Key Dependencies
 - `click` - CLI framework
@@ -39,10 +40,11 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 ### Development Commands
 ```bash
 mise install          # Install Python and tools
-uv sync --dev         # Install dependencies
-uv run ruff format .  # Format code
-uv run mypy src/     # Type checking
-uv run pytest       # Run tests
+mise run install     # Install dependencies (uv sync)
+mise run format      # Format code (uv run ruff format .)
+mise run lint        # Lint code (uv run ruff check .)
+mise run typecheck   # Type checking (uv run mypy src/)
+mise run test        # Run tests (uv run pytest)
 ```
 
 ## CLI Usage
@@ -56,7 +58,7 @@ jj-hook install           # Install in current directory
 ### Configuration
 Environment variables for LLM configuration:
 - `JJ_HOOK_MODEL` - LLM model (default: gpt-3.5-turbo)
-- `JJ_HOOK_LANGUAGE` - Prompt language (default: japanese)
+- `JJ_HOOK_LANGUAGE` - Prompt language (default: english)
 - `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` - API keys
 
 ## Hook Functionality
