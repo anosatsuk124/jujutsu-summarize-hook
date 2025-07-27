@@ -471,6 +471,17 @@ class CommitOrganizer:
         if (commit1.size_category in ["tiny", "small"] and 
             commit2.size_category in ["tiny", "small"]):
             
+            # ファイルパス分析（ExtendedCommitMetricsの場合）
+            if (isinstance(commit1, ExtendedCommitMetrics) and 
+                isinstance(commit2, ExtendedCommitMetrics)):
+                file_overlap = self._calculate_file_overlap(commit1, commit2)
+                if file_overlap > 0.5:  # 50%以上のファイルが重複
+                    return True
+                    
+                # 同一ディレクトリの変更
+                if self._are_in_same_directory(commit1.modified_files, commit2.modified_files):
+                    return True
+            
             # メッセージの類似度をチェック
             similarity = self._calculate_message_similarity(commit1.message, commit2.message)
             if similarity > 0.6:  # 60%以上類似
@@ -487,6 +498,43 @@ class CommitOrganizer:
                 return True
                 
         return False
+    
+    def _calculate_file_overlap(self, commit1: ExtendedCommitMetrics, commit2: ExtendedCommitMetrics) -> float:
+        """2つのコミット間のファイル重複度を計算する。"""
+        if not commit1.modified_files or not commit2.modified_files:
+            return 0.0
+            
+        set1 = set(commit1.modified_files)
+        set2 = set(commit2.modified_files)
+        
+        intersection = len(set1 & set2)
+        union = len(set1 | set2)
+        
+        return intersection / union if union > 0 else 0.0
+    
+    def _are_in_same_directory(self, files1: List[str], files2: List[str]) -> bool:
+        """2つのファイルグループが同一ディレクトリ内の変更かどうか判定する。"""
+        if not files1 or not files2:
+            return False
+            
+        # 各ファイルのディレクトリを取得
+        dirs1 = set()
+        dirs2 = set()
+        
+        for file in files1:
+            if '/' in file:
+                dirs1.add(file.rsplit('/', 1)[0])
+            else:
+                dirs1.add('.')  # ルートディレクトリ
+                
+        for file in files2:
+            if '/' in file:
+                dirs2.add(file.rsplit('/', 1)[0])
+            else:
+                dirs2.add('.')  # ルートディレクトリ
+        
+        # 共通ディレクトリがあるかチェック
+        return bool(dirs1 & dirs2)
     
     def _calculate_message_similarity(self, msg1: str, msg2: str) -> float:
         """2つのコミットメッセージの類似度を計算する。"""
