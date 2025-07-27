@@ -287,9 +287,9 @@ class CommitOrganizer:
         except Exception as e:
             return False, f"jj log error: {str(e)}"
     
-    def get_commit_details(self, cwd: str, commit_ids: List[str]) -> Dict[str, Dict[str, Any]]:
-        """複数のコミットの詳細情報を取得する。"""
-        details = {}
+    def get_commit_metrics(self, cwd: str, commit_ids: List[str]) -> List[CommitMetrics]:
+        """複数のコミットのメトリクス情報を取得する。"""
+        metrics_list = []
         
         for commit_id in commit_ids:
             try:
@@ -302,7 +302,7 @@ class CommitOrganizer:
                     timeout=10
                 )
                 
-                # コミット差分取得  
+                # コミット差分の詳細取得（数値データあり）
                 diff_result = subprocess.run(
                     ["jj", "diff", "-r", commit_id, "--stat"],
                     cwd=cwd,
@@ -312,16 +312,126 @@ class CommitOrganizer:
                 )
                 
                 if msg_result.returncode == 0 and diff_result.returncode == 0:
-                    details[commit_id] = {
-                        "message": msg_result.stdout.strip(),
-                        "diff_stat": diff_result.stdout.strip(),
-                    }
+                    message = msg_result.stdout.strip()
+                    diff_stat = diff_result.stdout.strip()
+                    
+                    # 差分統計を解析
+                    files_changed, lines_added, lines_deleted = self._parse_diff_stat(diff_stat)
+                    total_lines = lines_added + lines_deleted
+                    size_category = self._categorize_size(files_changed, total_lines)
+                    
+                    metrics = CommitMetrics(
+                        commit_id=commit_id,
+                        message=message,
+                        files_changed=files_changed,
+                        lines_added=lines_added,
+                        lines_deleted=lines_deleted,
+                        total_lines=total_lines,
+                        size_category=size_category
+                    )
+                    metrics_list.append(metrics)
                     
             except Exception as e:
-                details[commit_id] = {
-                    "message": f"取得失敗: {str(e)}",
-                    "diff_stat": "",
-                }
+                # エラーの場合はダミーデータで追加
+                metrics = CommitMetrics(
+                    commit_id=commit_id,
+                    message=f"取得失敗: {str(e)}",
+                    files_changed=0,
+                    lines_added=0,
+                    lines_deleted=0,
+                    total_lines=0,
+                    size_category="unknown"
+                )
+                metrics_list.append(metrics)
+                
+        return metrics_list
+    
+    def _parse_diff_stat(self, diff_stat: str) -> Tuple[int, int, int]:
+        """jj diff --statの出力を解析して数値を抽出する。"""
+        files_changed = 0
+        lines_added = 0
+        lines_deleted = 0
+        
+        try:
+            lines = diff_stat.split('\n')
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # ファイル行の例: " path/to/file.py | 10 +++++-----"
+                if '|' in line:
+                    files_changed += 1
+                    parts = line.split('|')
+                    if len(parts) > 1:
+                        # 数値部分を抽出
+                        stats_part = parts[1].strip()
+                        if stats_part:
+                            # 最初の数値が変更行数
+                            import re
+                            numbers = re.findall(r'\d+', stats_part)
+                            if numbers:
+                                total_changes = int(numbers[0])
+                                # +と-の数をカウント
+                                plus_count = stats_part.count('+')
+                                minus_count = stats_part.count('-')
+                                
+                                if plus_count > 0 and minus_count > 0:
+                                    # 比例配分
+                                    total_symbols = plus_count + minus_count
+                                    lines_added += int(total_changes * plus_count / total_symbols)
+                                    lines_deleted += int(total_changes * minus_count / total_symbols)
+                                elif plus_count > 0:
+                                    lines_added += total_changes
+                                elif minus_count > 0:
+                                    lines_deleted += total_changes
+                
+                # サマリー行の例: " 2 files changed, 15 insertions(+), 8 deletions(-)"
+                elif "files changed" in line or "file changed" in line:
+                    import re
+                    # insertions の数値を抽出
+                    insertions_match = re.search(r'(\d+) insertions?\(\+\)', line)
+                    if insertions_match:
+                        lines_added = int(insertions_match.group(1))
+                    
+                    # deletions の数値を抽出
+                    deletions_match = re.search(r'(\d+) deletions?\(-\)', line)
+                    if deletions_match:
+                        lines_deleted = int(deletions_match.group(1))
+                    
+                    # files changed の数値を抽出
+                    files_match = re.search(r'(\d+) files? changed', line)
+                    if files_match:
+                        files_changed = int(files_match.group(1))
+                        
+        except Exception:
+            # パースに失敗した場合はデフォルト値
+            pass
+                
+        return files_changed, lines_added, lines_deleted
+    
+    def _categorize_size(self, files_changed: int, total_lines: int) -> str:
+        """コミットサイズを分類する。"""
+        if total_lines <= 5 and files_changed <= 1:
+            return "tiny"
+        elif total_lines <= 20 and files_changed <= 3:
+            return "small" 
+        elif total_lines <= 100 and files_changed <= 10:
+            return "medium"
+        else:
+            return "large"
+    
+    def get_commit_details(self, cwd: str, commit_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+        """複数のコミットの詳細情報を取得する（下位互換用）。"""
+        details = {}
+        metrics_list = self.get_commit_metrics(cwd, commit_ids)
+        
+        for metrics in metrics_list:
+            details[metrics.commit_id] = {
+                "message": metrics.message,
+                "diff_stat": f"{metrics.files_changed} files, +{metrics.lines_added}/-{metrics.lines_deleted}",
+                "metrics": metrics
+            }
                 
         return details
     
