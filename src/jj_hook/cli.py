@@ -8,7 +8,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import click
 import litellm
@@ -797,7 +797,36 @@ def check_safety_conditions(cwd: str) -> List[str]:
     default=10,
     help="分析するコミット数の上限"
 )
-def organize(dry_run: bool, auto: bool, limit: int) -> None:
+@click.option(
+    "--tiny-threshold",
+    type=int,
+    default=5,
+    help="極小コミットと判定する変更行数の閾値"
+)
+@click.option(
+    "--small-threshold", 
+    type=int,
+    default=20,
+    help="小さいコミットと判定する変更行数の閾値"
+)
+@click.option(
+    "--confidence-threshold",
+    type=float,
+    default=0.7,
+    help="実行する提案の最低信頼度（0.0-1.0）"
+)
+@click.option(
+    "--exclude-pattern",
+    multiple=True,
+    help="統合対象外とするコミットメッセージの正規表現パターン"
+)
+@click.option(
+    "--aggressive",
+    is_flag=True,
+    help="積極的な統合を行う（低信頼度の提案も実行）"
+)
+def organize(dry_run: bool, auto: bool, limit: int, tiny_threshold: int, small_threshold: int, 
+            confidence_threshold: float, exclude_pattern: Tuple[str, ...], aggressive: bool) -> None:
     """AI分析を使用してコミット履歴を整理する。"""
     
     cwd = os.getcwd()
@@ -822,6 +851,16 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
         config = SummaryConfig()
         config.prompt_language = language
         organizer = CommitOrganizer(config)
+        
+        # 設定可能なパラメータを適用
+        organizer.tiny_threshold = tiny_threshold
+        organizer.small_threshold = small_threshold
+        organizer.exclude_patterns = list(exclude_pattern)
+        organizer.aggressive_mode = aggressive
+        
+        # 積極モードの場合は信頼度閾値を下げる
+        if aggressive:
+            confidence_threshold = min(confidence_threshold, 0.5)
         
         # 安全性チェック
         with console.status("[cyan]安全性をチェック中...", spinner="dots"):
@@ -854,6 +893,9 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
             console.print("[red]AI分析に失敗しました[/red]")
             sys.exit(1)
         
+        # 信頼度による提案フィルタリング
+        filtered_proposals = [p for p in proposals if p.confidence_score >= confidence_threshold]
+        
         if not proposals:
             console.print(Panel(
                 "📊 分析完了\n"
@@ -863,6 +905,19 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
                 border_style="green"
             ))
             return
+            
+        if not filtered_proposals:
+            console.print(Panel(
+                f"📊 分析完了\n"
+                f"• 全{len(proposals)}件の提案が信頼度閾値（{confidence_threshold:.1%}）未満です\n"
+                f"• --aggressive オプションまたは --confidence-threshold を下げて再実行してください",
+                title="分析結果",
+                border_style="yellow"
+            ))
+            return
+        
+        # フィルタリング後の提案を使用
+        proposals = filtered_proposals
         
         # 提案の表示
         console.print(Panel(

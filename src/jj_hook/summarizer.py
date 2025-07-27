@@ -279,6 +279,12 @@ class CommitOrganizer:
         if model_env := os.environ.get("JJ_HOOK_MODEL"):
             self.config.model = model_env
             
+        # 設定可能なパラメータ
+        self.tiny_threshold = 5
+        self.small_threshold = 20
+        self.exclude_patterns = []
+        self.aggressive_mode = False
+            
     def get_commit_log(self, cwd: str, limit: int = 20) -> Tuple[bool, str]:
         """コミット履歴を取得する。"""
         try:
@@ -379,6 +385,10 @@ class CommitOrganizer:
         tiny_commits = []
         
         for metrics in metrics_list:
+            # 除外パターンのチェック
+            if self._should_exclude_commit(metrics.message):
+                continue
+                
             # サイズベース判定
             if metrics.size_category == "tiny":
                 tiny_commits.append(metrics.commit_id)
@@ -390,10 +400,26 @@ class CommitOrganizer:
                 continue
                 
             # 特定パターン（タイポ修正など）
-            if self._is_fix_commit(metrics.message) and metrics.total_lines <= 10:
+            if self._is_fix_commit(metrics.message) and metrics.total_lines <= self.small_threshold // 2:
                 tiny_commits.append(metrics.commit_id)
                 
         return tiny_commits
+    
+    def _should_exclude_commit(self, message: str) -> bool:
+        """コミットを除外すべきかどうか判定する。"""
+        if not self.exclude_patterns:
+            return False
+            
+        import re
+        for pattern in self.exclude_patterns:
+            try:
+                if re.search(pattern, message, re.IGNORECASE):
+                    return True
+            except re.error:
+                # 無効な正規表現の場合は部分文字列マッチにフォールバック
+                if pattern.lower() in message.lower():
+                    return True
+        return False
     
     def _is_trivial_commit_message(self, message: str) -> bool:
         """些細なコミットメッセージかどうか判定する。"""
@@ -682,9 +708,9 @@ class CommitOrganizer:
     
     def _categorize_size(self, files_changed: int, total_lines: int) -> str:
         """コミットサイズを分類する。"""
-        if total_lines <= 5 and files_changed <= 1:
+        if total_lines <= self.tiny_threshold and files_changed <= 1:
             return "tiny"
-        elif total_lines <= 20 and files_changed <= 3:
+        elif total_lines <= self.small_threshold and files_changed <= 3:
             return "small" 
         elif total_lines <= 100 and files_changed <= 10:
             return "medium"
