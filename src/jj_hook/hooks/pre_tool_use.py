@@ -15,14 +15,7 @@ from pathlib import Path
 # 言語設定の取得
 LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
 
-try:
-    from ..summarizer import JujutsuSummarizer, SummaryConfig
-    from ..template_loader import load_template
-except ImportError:
-    # フォールバック：スクリプトが単体で実行された場合
-    warning_msg = "警告: jj_hook パッケージをインポートできませんでした。スタンドアロンモードで実行します。\n" if LANGUAGE == "japanese" else "Warning: Could not import jj_hook package. Running in standalone mode.\n"
-    sys.stderr.write(warning_msg)
-    load_template = None
+from ..template_loader import load_template
 
 
 def is_jj_repository(cwd: str) -> bool:
