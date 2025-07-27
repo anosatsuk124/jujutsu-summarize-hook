@@ -701,7 +701,7 @@ Always aim to improve commit history quality, considering future maintenance and
 @click.option(
     "--global", "is_global",
     is_flag=True,
-    help="グローバル設定（~/.claude/slash-commands/）にインストール"
+    help="グローバル設定（~/.claude/commands/）にインストール"
 )
 @click.option(
     "--path", 
@@ -723,11 +723,11 @@ def install_slash_command(is_global: bool, path: Optional[Path]) -> None:
         sys.exit(1)
     
     if is_global:
-        slash_commands_dir = Path.home() / ".claude" / "slash-commands"
+        slash_commands_dir = Path.home() / ".claude" / "commands"
         install_location = "グローバル設定" if language == "japanese" else "Global settings"
     else:
         target_path = path if path is not None else Path.cwd()
-        slash_commands_dir = target_path / ".claude" / "slash-commands"
+        slash_commands_dir = target_path / ".claude" / "commands"
         install_location = f"ローカル設定 ({target_path})" if language == "japanese" else f"Local settings ({target_path})"
     
     location_label = "インストール先" if language == "japanese" else "Install location"
@@ -1008,10 +1008,10 @@ Always aim to improve commit history quality, considering future maintenance and
             if not dry_run:
                 # slash commandディレクトリの決定
                 if is_global:
-                    slash_commands_dir = Path.home() / ".claude" / "slash-commands"
+                    slash_commands_dir = Path.home() / ".claude" / "commands"
                 else:
                     target_path_slash = path if path is not None else Path.cwd()
-                    slash_commands_dir = target_path_slash / ".claude" / "slash-commands"
+                    slash_commands_dir = target_path_slash / ".claude" / "commands"
                 
                 # ディレクトリ作成
                 slash_commands_dir.mkdir(parents=True, exist_ok=True)
