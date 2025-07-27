@@ -20,7 +20,29 @@
 - [mise](https://mise.jdx.dev/) (推奨)
 - [uv](https://docs.astral.sh/uv/) (推奨)
 
-## インストール
+## クイックスタート
+
+### 1. リポジトリのクローン
+
+```bash
+git clone https://github.com/anosatsuk124/jujutsu-summarize-hook.git
+```
+
+### 2. インストール
+
+```bash
+cd jujutsu-summarize-hook
+uv tool install .
+```
+```
+
+### 3. 好きな場所にhooks/agents のインストール (ローカルディレクトリ)
+
+```bash
+jj-hook install-all
+```
+
+## インストール (開発者向け)
 
 ### 1. プロジェクトのセットアップ
 
