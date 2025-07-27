@@ -249,6 +249,13 @@ class CommitMetrics:
     lines_deleted: int
     total_lines: int
     size_category: str  # "tiny", "small", "medium", "large"
+
+
+@dataclass  
+class ExtendedCommitMetrics(CommitMetrics):
+    """拡張されたコミットメトリクス情報"""
+    modified_files: List[str] = None  # 変更されたファイルのリスト
+    commit_time: Optional[str] = None  # コミット時刻
     
     
 @dataclass
