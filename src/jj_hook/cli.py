@@ -1033,6 +1033,74 @@ def auth(provider: str, check: bool) -> None:
                 sys.exit(1)
 
 
+@cli.command(name="summarize")
+def summarize() -> None:
+    """AIを使用して変更を要約し、コミットする。"""
+    cwd = os.getcwd()
+    LANGUAGE = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+
+    try:
+        if not is_jj_repository(cwd):
+            msg = "Jujutsuリポジトリではありません。スキップします。" if LANGUAGE == "japanese" else "Not a Jujutsu repository. Skipping."
+            console.print(f"[red]{msg}[/red]")
+            sys.exit(0)
+
+        if not has_uncommitted_changes(cwd):
+            msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+            console.print(f"[yellow]{msg}[/yellow]")
+            sys.exit(0)
+
+        console.print("[blue]AIがコミットメッセージを生成中...[/blue]")
+        try:
+            from jj_hook.summarizer import JujutsuSummarizer
+            summarizer = JujutsuSummarizer()
+            success, summary = summarizer.generate_commit_summary(cwd)
+
+            if not success:
+                error_msg = f"サマリー生成に失敗しました: {summary}" if LANGUAGE == "japanese" else f"Summary generation failed: {summary}"
+                console.print(f"[red]{error_msg}[/red]")
+                summary = create_fallback_summary(cwd)
+                if not summary:
+                    # フォールバックでもサマリーが生成できない場合
+                    msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                    console.print(f"[yellow]{msg}[/yellow]")
+                    sys.exit(0)
+
+        except ImportError:
+            console.print("[yellow]警告: summarizerモジュールのインポートに失敗しました。フォールバックします。[/yellow]")
+            summary = create_fallback_summary(cwd)
+            if not summary:
+                msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                console.print(f"[yellow]{msg}[/yellow]")
+                sys.exit(0)
+        except Exception as e:
+            error_msg = f"予期しないエラー: {type(e).__name__}: {str(e)}" if LANGUAGE == "japanese" else f"Unexpected error: {type(e).__name__}: {str(e)}"
+            console.print(f"[red]{error_msg}[/red]")
+            summary = create_fallback_summary(cwd)
+            if not summary:
+                msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                console.print(f"[yellow]{msg}[/yellow]")
+                sys.exit(0)
+
+        commit_success, commit_result = commit_changes(cwd, summary)
+
+        if commit_success:
+            success_msg = f"✅ 自動コミット完了: {summary}" if LANGUAGE == "japanese" else f"✅ Auto-commit completed: {summary}"
+            console.print(f"[green]{success_msg}[/green]")
+            if commit_result:
+                console.print(f"詳細: {commit_result}")
+        else:
+            error_msg = f"❌ コミットに失敗しました: {commit_result}" if LANGUAGE == "japanese" else f"❌ Commit failed: {commit_result}"
+            console.print(f"[red]{error_msg}[/red]")
+            sys.exit(1)
+
+    except SystemExit as e:
+        sys.exit(e.code)
+    except Exception as e:
+        console.print(f"[red]エラーが発生しました: {e}[/red]")
+        sys.exit(1)
+
+
 def is_jj_repository(cwd: str) -> bool:
     """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
     try:
