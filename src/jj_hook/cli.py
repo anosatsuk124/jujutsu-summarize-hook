@@ -131,6 +131,34 @@ def get_project_root() -> Path:
     return hooks_dir
 
 
+def get_slash_command_content(language: str = "japanese") -> str:
+    """Slash command用のMarkdown内容を生成する。"""
+    if language == "japanese":
+        return """jj-commit-organizerサブエージェントを使ってコミット履歴を分析し、適切に整理してください。
+
+jj log と jj diff でコミット履歴を確認し、関連するコミットをまとめたり、意味のあるコミットメッセージに変更するなど、論理的な整理を行ってください。
+
+具体的には：
+1. 現在のコミット履歴を確認
+2. 統合すべきコミットや分離すべき変更を特定
+3. jj squash や jj describe を使った整理の提案
+4. ユーザーの確認後に実際の整理作業を実行
+
+安全のため、作業前にバックアップブランチの作成も行ってください。"""
+    else:  # english
+        return """Use the jj-commit-organizer sub-agent to analyze and organize the commit history appropriately.
+
+Please review the commit history using jj log and jj diff, then logically organize it by grouping related commits and creating meaningful commit messages.
+
+Specifically:
+1. Check the current commit history
+2. Identify commits to merge or changes to separate
+3. Propose organization using jj squash and jj describe
+4. Execute actual organization work after user confirmation
+
+For safety, please create a backup branch before starting work."""
+
+
 def create_claude_settings_dir(target_path: Path) -> Path:
     """Claude設定ディレクトリを作成し、パスを返す。"""
     claude_dir = target_path / ".claude"
