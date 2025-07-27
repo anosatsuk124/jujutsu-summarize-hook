@@ -655,12 +655,38 @@ class CommitOrganizer:
         if len(commit_ids) < 2:
             return True, []  # 統合対象がない
         
-        # 上位5件のコミット詳細を取得
-        recent_commits = commit_ids[:min(5, len(commit_ids))]
-        commit_details = self.get_commit_details(cwd, recent_commits)
+        # 分析対象のコミット数を制限
+        target_commits = commit_ids[:min(limit, len(commit_ids))]
         
-        # AI分析でスカッシュ提案を生成
-        return self._generate_squash_proposals(log_output, commit_details)
+        # メトリクス情報を取得
+        metrics_list = self.get_commit_metrics(cwd, target_commits)
+        
+        # ルールベース分析
+        rule_based_proposals = self.generate_rule_based_proposals(metrics_list)
+        
+        # AI分析も実行（下位互換性とより高度な検出のため）
+        commit_details = self.get_commit_details(cwd, target_commits[:5])  # AI分析は5件まで
+        ai_success, ai_proposals = self._generate_squash_proposals(log_output, commit_details)
+        
+        # 両方の提案をマージ（ルールベースを優先）
+        all_proposals = rule_based_proposals[:]
+        
+        if ai_success:
+            # 重複を避けながらAI提案を追加
+            for ai_proposal in ai_proposals:
+                # 既存のルールベース提案と重複しないかチェック
+                is_duplicate = False
+                for rule_proposal in rule_based_proposals:
+                    if (set(ai_proposal.source_commits) & set(rule_proposal.source_commits) or
+                        ai_proposal.target_commit == rule_proposal.target_commit):
+                        is_duplicate = True
+                        break
+                
+                if not is_duplicate:
+                    ai_proposal.confidence_score = 0.7  # AI提案は信頼度を下げる
+                    all_proposals.append(ai_proposal)
+        
+        return True, all_proposals
     
     def _generate_squash_proposals(self, log_output: str, commit_details: Dict[str, Dict[str, Any]]) -> Tuple[bool, List[SquashProposal]]:
         """AI分析でスカッシュ提案を生成する。"""
