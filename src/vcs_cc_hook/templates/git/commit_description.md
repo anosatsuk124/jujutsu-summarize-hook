@@ -1,7 +1,7 @@
 Please respond in {language}.
 Please write any messages in {language}.
 
-Generate a brief revision description for the file operation.
+Generate a brief commit message for the file operation.
 
 ## File Information:
 - Tool: {tool_name}
@@ -22,4 +22,4 @@ Generate a brief revision description for the file operation.
 - "Update {file_name}" for multi-edit operations
 - Add context like "(add functions)" or "(bug fix)" when relevant
 
-Generate only the revision description:
+Generate only the commit message:

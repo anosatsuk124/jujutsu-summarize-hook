@@ -1,20 +1,21 @@
-# jujutsu-summarize-hook
+# vcs-cc-hook
 
-This repository provides AI-powered hooks for Claude Code that integrate with both Jujutsu (jj) and Git version control systems.
+This repository provides AI-powered hooks for Claude Code that integrate with both Jujutsu (jj) and Git version control systems with automatic detection and VCS-specific optimization.
 
 ## Features
 
 - **Multi-VCS Support**: Automatic detection and support for both Jujutsu (jj) and Git repositories
 - **Automatic New Branch/Revision Creation**: Create new branches (Git) or revisions (Jujutsu) before file edits
 - **Automatic Commits**: Automatically commit with AI-generated summaries after file edits
-- **AI-Powered Commit History Organization**: Analyze and reorganize commit history using `jj-hook organize`
-- **Sub-agent Integration**: jj-commit-organizer sub-agent for intelligent commit management
-- **Slash Command Support**: `/jj-commit-organizer` command for quick access to commit organization
+- **AI-Powered Commit History Organization**: Analyze and reorganize commit history using `vcs-cc-hook organize`
+- **Sub-agent Integration**: VCS-specific sub-agents (jj-commit-organizer, git-commit-organizer, vcs-commit-organizer) for intelligent commit management
+- **Slash Command Support**: Multiple slash commands for VCS-specific and generic commit organization
 - **Template System**: Customizable prompt templates for different languages and scenarios
 - **GitHub Copilot Integration**: Built-in support for GitHub Copilot with OAuth authentication
 - **Multi-language Support**: Support for both English and Japanese commit messages and branch names
 - **Multiple LLM Providers**: Support for OpenAI, Anthropic, GitHub Copilot, local models, and more
 - **Bulk Installation**: Install all components (hooks, sub-agents, slash commands) at once
+- **Three Command Options**: VCS-specific (`jj-cc-hook`, `git-cc-hook`) and universal (`vcs-cc-hook`) commands
 
 ## Requirements
 
