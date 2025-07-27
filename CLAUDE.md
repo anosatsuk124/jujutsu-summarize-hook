@@ -40,10 +40,11 @@ This repository provides AI-powered hooks for Claude Code that integrate with th
 ### Development Commands
 ```bash
 mise install          # Install Python and tools
-uv sync --dev         # Install dependencies
-uv run ruff format .  # Format code
-uv run mypy src/     # Type checking
-uv run pytest       # Run tests
+mise run install     # Install dependencies (uv sync)
+mise run format      # Format code (uv run ruff format .)
+mise run lint        # Lint code (uv run ruff check .)
+mise run typecheck   # Type checking (uv run mypy src/)
+mise run test        # Run tests (uv run pytest)
 ```
 
 ## CLI Usage
