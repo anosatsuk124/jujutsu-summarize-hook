@@ -910,21 +910,22 @@ def organize(dry_run: bool, auto: bool, limit: int) -> None:
         executed_count = 0
         failed_count = 0
         
-        with console.status("[cyan]統合を実行中...", spinner="dots"):
-            for i, proposal in enumerate(proposals, 1):
-                console.print(f"\n[cyan]統合 {i}/{len(proposals)}を実行中...[/cyan]")
+        for i, proposal in enumerate(selected_proposals, 1):
+            console.print(f"\n[cyan]統合 {i}/{len(selected_proposals)}を実行中...[/cyan]")
+            
+            with console.status(f"[cyan]統合中... ({i}/{len(selected_proposals)})", spinner="dots"):
                 success, message = organizer.execute_squash(cwd, proposal)
+            
+            if success:
+                console.print(f"[green]✅ 完了: {message}[/green]")
+                executed_count += 1
+            else:
+                console.print(f"[red]❌ 失敗: {message}[/red]")
+                failed_count += 1
                 
-                if success:
-                    console.print(f"[green]✅ 完了: {message}[/green]")
-                    executed_count += 1
-                else:
-                    console.print(f"[red]❌ 失敗: {message}[/red]")
-                    failed_count += 1
-                    
-                    if not auto and failed_count > 0:
-                        if not Confirm.ask("エラーが発生しましたが続行しますか？"):
-                            break
+                if not auto and failed_count > 0:
+                    if not Confirm.ask("エラーが発生しましたが続行しますか？"):
+                        break
         
         # 結果表示
         console.print(Panel(
