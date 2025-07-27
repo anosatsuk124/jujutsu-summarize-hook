@@ -22,7 +22,7 @@ def create_fallback_summary(cwd: str) -> str:
     language = os.environ.get("JJ_CC_HOOK_LANGUAGE", "japanese")
     backend = JujutsuBackend(cwd)
     if backend.is_repository() and backend.has_uncommitted_changes():
-        return "ファイルを編集" if LANGUAGE == "japanese" else "Edit files"
+        return "ファイルを編集" if language == "japanese" else "Edit files"
     else:
         return ""
 
