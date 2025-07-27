@@ -27,7 +27,9 @@ class SummaryConfig(BaseModel):
 class JujutsuSummarizer:
     """VCSリポジトリの変更をサマリーするクラス（JujutsuとGitの両方に対応）。"""
 
-    def __init__(self, config: Optional[SummaryConfig] = None, vcs_backend: Optional[VCSBackend] = None) -> None:
+    def __init__(
+        self, config: Optional[SummaryConfig] = None, vcs_backend: Optional[VCSBackend] = None
+    ) -> None:
         """初期化。"""
         self.config = config or SummaryConfig()
         self.vcs_backend = vcs_backend
@@ -40,7 +42,7 @@ class JujutsuSummarizer:
         """VCSバックエンドを取得する。"""
         if self.vcs_backend:
             return self.vcs_backend
-        
+
         backend = detect_vcs_backend(cwd)
         if not backend:
             raise ValueError(f"VCSリポジトリが見つかりません: {cwd}")
@@ -64,11 +66,11 @@ class JujutsuSummarizer:
             (success, message): 成功フラグとメッセージ
         """
         backend = self._get_vcs_backend(cwd)
-        
+
         # 変更があるかチェック
         if not backend.has_uncommitted_changes():
             return False, "変更がありません"
-        
+
         status_output = backend.get_status()
         diff_output = backend.get_diff()
 
@@ -198,7 +200,9 @@ class SquashProposal:
 class CommitOrganizer:
     """コミット履歴を整理するクラス。"""
 
-    def __init__(self, config: Optional[SummaryConfig] = None, vcs_backend: Optional[VCSBackend] = None) -> None:
+    def __init__(
+        self, config: Optional[SummaryConfig] = None, vcs_backend: Optional[VCSBackend] = None
+    ) -> None:
         """初期化。"""
         self.config = config or SummaryConfig()
         self.vcs_backend = vcs_backend
@@ -217,7 +221,7 @@ class CommitOrganizer:
         """VCSバックエンドを取得する。"""
         if self.vcs_backend:
             return self.vcs_backend
-        
+
         backend = detect_vcs_backend(cwd)
         if not backend:
             raise ValueError(f"VCSリポジトリが見つかりません: {cwd}")
@@ -251,7 +255,6 @@ class CommitOrganizer:
                     modified_files = []
 
                 if msg_success and diff_success:
-
                     # 差分統計を解析
                     files_changed, lines_added, lines_deleted = self._parse_diff_stat(diff_stat)
                     total_lines = lines_added + lines_deleted
@@ -403,7 +406,9 @@ class CommitOrganizer:
 
         return related_groups
 
-    def _are_commits_related(self, commit1: ExtendedCommitMetrics, commit2: ExtendedCommitMetrics) -> bool:
+    def _are_commits_related(
+        self, commit1: ExtendedCommitMetrics, commit2: ExtendedCommitMetrics
+    ) -> bool:
         """2つのコミットが関連しているかどうか判定する。"""
         # 両方とも小さいコミットの場合
         if commit1.size_category in ["tiny", "small"] and commit2.size_category in [
@@ -419,8 +424,11 @@ class CommitOrganizer:
                     return True
 
                 # 同一ディレクトリの変更
-                if (commit1.modified_files is not None and commit2.modified_files is not None and
-                    self._are_in_same_directory(commit1.modified_files, commit2.modified_files)):
+                if (
+                    commit1.modified_files is not None
+                    and commit2.modified_files is not None
+                    and self._are_in_same_directory(commit1.modified_files, commit2.modified_files)
+                ):
                     return True
 
             # メッセージの類似度をチェック
@@ -779,11 +787,13 @@ class CommitOrganizer:
             # VCSバックエンドによって処理を分岐
             from .jujutsu_backend import JujutsuBackend
             from .git_backend import GitBackend
-            
+
             if isinstance(backend, JujutsuBackend):
                 # Jujutsuバックエンドの場合
                 for source in sources:
-                    success, message = backend.squash_commits(source, target, proposal.suggested_message)
+                    success, message = backend.squash_commits(
+                        source, target, proposal.suggested_message
+                    )
                     if not success:
                         return False, message
                 return True, "スカッシュが完了しました"
@@ -805,11 +815,11 @@ class CommitOrganizer:
             backup_name = f"backup_before_organize_{timestamp}"
 
             backend = self._get_vcs_backend(cwd)
-            
+
             # VCSバックエンドによって処理を分岐
             from .jujutsu_backend import JujutsuBackend
             from .git_backend import GitBackend
-            
+
             if isinstance(backend, JujutsuBackend):
                 return backend.create_backup_bookmark(backup_name)
             elif isinstance(backend, GitBackend):

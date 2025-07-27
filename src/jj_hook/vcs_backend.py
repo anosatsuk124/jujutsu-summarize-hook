@@ -73,11 +73,7 @@ class VCSBackend(ABC):
         """コマンドを実行して結果を返すヘルパーメソッド。"""
         try:
             result = subprocess.run(
-                command,
-                cwd=self.cwd,
-                capture_output=True,
-                text=True,
-                timeout=timeout
+                command, cwd=self.cwd, capture_output=True, text=True, timeout=timeout
             )
             return result.returncode == 0, result.stdout, result.stderr
         except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError) as e:
@@ -87,22 +83,24 @@ class VCSBackend(ABC):
 def detect_vcs_backend(cwd: str) -> Optional[VCSBackend]:
     """
     指定されたディレクトリでVCSバックエンドを自動検出する。
-    
+
     Returns:
         検出されたVCSバックエンド、または None
     """
     # Jujutsuを優先的に検出
     from .jujutsu_backend import JujutsuBackend
+
     jj_backend = JujutsuBackend(cwd)
     if jj_backend.is_repository():
         return jj_backend
-    
+
     # Gitを検出
     from .git_backend import GitBackend
+
     git_backend = GitBackend(cwd)
     if git_backend.is_repository():
         return git_backend
-    
+
     return None
 
 

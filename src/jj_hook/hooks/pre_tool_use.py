@@ -55,21 +55,17 @@ def should_create_revision_for_tool(tool_name: str, tool_input: dict[str, str]) 
     return True
 
 
-def generate_revision_description_from_tool(tool_name: str, tool_input: dict[str, str], cwd: str) -> str:
+def generate_revision_description_from_tool(
+    tool_name: str, tool_input: dict[str, str], cwd: str
+) -> str:
     """ツール情報から作業内容の説明を生成する。"""
     file_path = tool_input.get("file_path", "")
     file_name = Path(file_path).name if file_path else ""
-    
+
     # jj diffを取得
     diff_content = ""
     try:
-        result = subprocess.run(
-            ["jj", "diff"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        result = subprocess.run(["jj", "diff"], cwd=cwd, capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
             diff_content = result.stdout
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
@@ -77,11 +73,11 @@ def generate_revision_description_from_tool(tool_name: str, tool_input: dict[str
 
     try:
         description = load_template(
-            "revision_description", 
-            tool_name=tool_name, 
-            file_name=file_name, 
+            "revision_description",
+            tool_name=tool_name,
+            file_name=file_name,
             file_path=file_path,
-            content_hints=diff_content
+            content_hints=diff_content,
         )
     except (FileNotFoundError, ValueError) as e:
         # テンプレート読み込みに失敗した場合のフォールバック

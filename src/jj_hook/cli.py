@@ -33,7 +33,7 @@ def create_fallback_summary(cwd: str) -> str:
 def is_jj_repository(cwd: str) -> bool:
     """現在のディレクトリがJujutsuリポジトリかどうかチェックする（下位互換用）。"""
     backend = detect_vcs_backend(cwd)
-    return backend is not None and hasattr(backend, 'is_repository') and backend.is_repository()
+    return backend is not None and hasattr(backend, "is_repository") and backend.is_repository()
 
 
 def has_uncommitted_changes(cwd: str) -> bool:
@@ -49,8 +49,6 @@ def commit_changes(cwd: str, message: str) -> tuple[bool, str]:
         return backend.commit_changes(message)
     else:
         return False, "VCSリポジトリが見つかりません"
-
-
 
 
 def check_github_copilot_auth() -> tuple[bool, str]:
@@ -172,13 +170,13 @@ def get_project_root() -> Path:
 def get_slash_command_content(language: str = "japanese") -> str:
     """Generate Markdown content for slash command from template file."""
     from pathlib import Path
-    
+
     template_path = Path(__file__).parent / "templates" / "slash_command.md"
-    
+
     try:
         with open(template_path, "r", encoding="utf-8") as f:
             content = f.read()
-        
+
         # Replace language placeholder
         return content.format(language=language)
     except FileNotFoundError:
@@ -221,7 +219,7 @@ def get_existing_settings(settings_file: Path) -> dict[str, Any]:
     if settings_file.exists():
         try:
             with open(settings_file, encoding="utf-8") as f:
-                data = json.load(f)
+                data: dict[str, Any] = json.load(f)
                 return data
         except (json.JSONDecodeError, OSError) as e:
             console.print(f"[yellow]警告: 既存の設定ファイルの読み込みに失敗しました: {e}[/yellow]")
@@ -1022,56 +1020,95 @@ def summarize() -> None:
 
     try:
         if not is_vcs_repository(cwd):
-            msg = "VCSリポジトリではありません。スキップします。" if LANGUAGE == "japanese" else "Not a VCS repository. Skipping."
+            msg = (
+                "VCSリポジトリではありません。スキップします。"
+                if LANGUAGE == "japanese"
+                else "Not a VCS repository. Skipping."
+            )
             console.print(f"[red]{msg}[/red]")
             sys.exit(0)
 
         if not has_uncommitted_changes(cwd):
-            msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+            msg = (
+                "変更がありません。コミットをスキップします。"
+                if LANGUAGE == "japanese"
+                else "No changes found. Skipping commit."
+            )
             console.print(f"[yellow]{msg}[/yellow]")
             sys.exit(0)
 
         console.print("[blue]AIがコミットメッセージを生成中...[/blue]")
         try:
             from jj_hook.summarizer import JujutsuSummarizer
+
             summarizer = JujutsuSummarizer()
             success, summary = summarizer.generate_commit_summary(cwd)
 
             if not success:
-                error_msg = f"サマリー生成に失敗しました: {summary}" if LANGUAGE == "japanese" else f"Summary generation failed: {summary}"
+                error_msg = (
+                    f"サマリー生成に失敗しました: {summary}"
+                    if LANGUAGE == "japanese"
+                    else f"Summary generation failed: {summary}"
+                )
                 console.print(f"[red]{error_msg}[/red]")
                 summary = create_fallback_summary(cwd)
                 if not summary:
                     # フォールバックでもサマリーが生成できない場合
-                    msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                    msg = (
+                        "変更がありません。コミットをスキップします。"
+                        if LANGUAGE == "japanese"
+                        else "No changes found. Skipping commit."
+                    )
                     console.print(f"[yellow]{msg}[/yellow]")
                     sys.exit(0)
 
         except ImportError:
-            console.print("[yellow]警告: summarizerモジュールのインポートに失敗しました。フォールバックします。[/yellow]")
+            console.print(
+                "[yellow]警告: summarizerモジュールのインポートに失敗しました。フォールバックします。[/yellow]"
+            )
             summary = create_fallback_summary(cwd)
             if not summary:
-                msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                msg = (
+                    "変更がありません。コミットをスキップします。"
+                    if LANGUAGE == "japanese"
+                    else "No changes found. Skipping commit."
+                )
                 console.print(f"[yellow]{msg}[/yellow]")
                 sys.exit(0)
         except Exception as e:
-            error_msg = f"予期しないエラー: {type(e).__name__}: {str(e)}" if LANGUAGE == "japanese" else f"Unexpected error: {type(e).__name__}: {str(e)}"
+            error_msg = (
+                f"予期しないエラー: {type(e).__name__}: {str(e)}"
+                if LANGUAGE == "japanese"
+                else f"Unexpected error: {type(e).__name__}: {str(e)}"
+            )
             console.print(f"[red]{error_msg}[/red]")
             summary = create_fallback_summary(cwd)
             if not summary:
-                msg = "変更がありません。コミットをスキップします。" if LANGUAGE == "japanese" else "No changes found. Skipping commit."
+                msg = (
+                    "変更がありません。コミットをスキップします。"
+                    if LANGUAGE == "japanese"
+                    else "No changes found. Skipping commit."
+                )
                 console.print(f"[yellow]{msg}[/yellow]")
                 sys.exit(0)
 
         commit_success, commit_result = commit_changes(cwd, summary)
 
         if commit_success:
-            success_msg = f"✅ 自動コミット完了: {summary}" if LANGUAGE == "japanese" else f"✅ Auto-commit completed: {summary}"
+            success_msg = (
+                f"✅ 自動コミット完了: {summary}"
+                if LANGUAGE == "japanese"
+                else f"✅ Auto-commit completed: {summary}"
+            )
             console.print(f"[green]{success_msg}[/green]")
             if commit_result:
                 console.print(f"詳細: {commit_result}")
         else:
-            error_msg = f"❌ コミットに失敗しました: {commit_result}" if LANGUAGE == "japanese" else f"❌ Commit failed: {commit_result}"
+            error_msg = (
+                f"❌ コミットに失敗しました: {commit_result}"
+                if LANGUAGE == "japanese"
+                else f"❌ Commit failed: {commit_result}"
+            )
             console.print(f"[red]{error_msg}[/red]")
             sys.exit(1)
 
@@ -1080,8 +1117,6 @@ def summarize() -> None:
     except Exception as e:
         console.print(f"[red]エラーが発生しました: {e}[/red]")
         sys.exit(1)
-
-
 
 
 def check_safety_conditions(cwd: str) -> List[str]:
@@ -1139,11 +1174,7 @@ def organize(
 
     # VCSリポジトリかチェック
     if not is_vcs_repository(cwd):
-        msg = (
-            "VCSリポジトリではありません。"
-            if language == "japanese"
-            else "Not a VCS repository."
-        )
+        msg = "VCSリポジトリではありません。" if language == "japanese" else "Not a VCS repository."
         console.print(f"[red]{msg}[/red]")
         sys.exit(1)
 
