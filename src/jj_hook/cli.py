@@ -221,7 +221,8 @@ def get_existing_settings(settings_file: Path) -> dict[str, Any]:
     if settings_file.exists():
         try:
             with open(settings_file, encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                return data
         except (json.JSONDecodeError, OSError) as e:
             console.print(f"[yellow]警告: 既存の設定ファイルの読み込みに失敗しました: {e}[/yellow]")
             return {}
