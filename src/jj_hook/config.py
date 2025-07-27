@@ -1,19 +1,19 @@
 """設定管理モジュール。"""
 
 import os
-from typing import Optional
+
 from pydantic import BaseModel
 
 
 class Config(BaseModel):
     """アプリケーション設定。"""
-    
+
     # LiteLLM設定
     model: str = "gpt-3.5-turbo"
     max_tokens: int = 100
     temperature: float = 0.1
     prompt_language: str = "english"
-    
+
     # 環境変数からの読み込み
     @classmethod
     def from_env(cls) -> "Config":

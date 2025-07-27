@@ -6,10 +6,9 @@ automatically creates a new Jujutsu revision with a descriptive name based on th
 """
 
 import json
-import sys
-import subprocess
 import os
-import re
+import subprocess
+import sys
 from pathlib import Path
 
 # 言語設定の取得
@@ -21,13 +20,7 @@ from ..template_loader import load_template
 def is_jj_repository(cwd: str) -> bool:
     """現在のディレクトリがJujutsuリポジトリかどうかチェックする。"""
     try:
-        result = subprocess.run(
-            ["jj", "root"],
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
+        result = subprocess.run(["jj", "root"], cwd=cwd, capture_output=True, text=True, timeout=5)
         return result.returncode == 0
     except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
         return False
@@ -42,7 +35,7 @@ def create_new_revision(cwd: str, revision_description: str) -> tuple[bool, str]
             cwd=cwd,
             capture_output=True,
             text=True,
-            timeout=15
+            timeout=15,
         )
         if result.returncode == 0:
             return True, result.stdout.strip()
@@ -57,61 +50,50 @@ def should_create_revision_for_tool(tool_name: str, tool_input: dict) -> bool:
     # 対象ツール以外はスキップ
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         return False
-    
+
     # ファイルパスから判断（一時ファイルのみスキップ）
     file_path = tool_input.get("file_path", "")
     if file_path:
         # 一時ファイルや隠しファイルはスキップ
-        if any(pattern in file_path.lower() for pattern in [
-            "/tmp/", "/temp/", "/.claude/", "/.git/", 
-            ".tmp", ".temp", ".cache"
-        ]):
+        if any(
+            pattern in file_path.lower()
+            for pattern in ["/tmp/", "/temp/", "/.claude/", "/.git/", ".tmp", ".temp", ".cache"]
+        ):
             return False
-    
+
     # その他のファイルは基本的に作成（READMEなどを含む）
     return True
 
 
-def generate_revision_description_from_tool(tool_name: str, tool_input: dict) -> str:
+def generate_revision_description_from_tool(tool_name: str, tool_input: dict, cwd: str) -> str:
     """ツール情報から作業内容の説明を生成する。"""
     file_path = tool_input.get("file_path", "")
     file_name = Path(file_path).name if file_path else ""
     
-    # 内容解析のヒント生成
-    content = tool_input.get("content", "") or tool_input.get("new_string", "")
-    content_hints = ""
-    if content:
-        content_lower = content.lower()
-        hints = []
-        
-        if any(keyword in content_lower for keyword in ["function", "def ", "class"]):
-            hints.append("functions/classes")
-        if any(keyword in content_lower for keyword in ["import", "require"]):
-            hints.append("dependencies")
-        if any(keyword in content_lower for keyword in ["test", "spec"]):
-            hints.append("tests")
-        if any(keyword in content_lower for keyword in ["fix", "bug", "error"]):
-            hints.append("bug fix")
-        if any(keyword in content_lower for keyword in ["feature", "新機能"]):
-            hints.append("feature")
-        if any(keyword in content_lower for keyword in ["refactor", "リファクタ"]):
-            hints.append("refactoring")
-        
-        if hints:
-            content_hints = f"Content includes: {', '.join(hints)}"
-    
-    # テンプレートを使用して説明を生成
+    # jj diffを取得
+    diff_content = ""
+    try:
+        result = subprocess.run(
+            ["jj", "diff"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0:
+            diff_content = result.stdout
+    except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
     description = load_template(
-        "revision_description",
-        tool_name=tool_name,
-        file_name=file_name,
+        "revision_description", 
+        tool_name=tool_name, 
+        file_name=file_name, 
         file_path=file_path,
-        content_hints=content_hints
+        diff=diff_content
     )
-    
+
     return description.strip()
-
-
 
 
 def main() -> None:
@@ -122,33 +104,32 @@ def main() -> None:
     except json.JSONDecodeError as e:
         sys.stderr.write(f"JSONデコードエラー: {e}\n")
         sys.exit(1)
-    
+
     # フック情報の取得
     tool_name = input_data.get("tool_name", "")
     tool_input = input_data.get("tool_input", {})
     cwd = input_data.get("cwd", os.getcwd())
-    
+
     # 対象のツールかチェック
     if tool_name not in ["Edit", "Write", "MultiEdit"]:
         sys.exit(0)
-    
+
     # Jujutsuリポジトリかチェック
     if not is_jj_repository(cwd):
         sys.stderr.write("Jujutsuリポジトリではありません。スキップします。\n")
         sys.exit(0)
-    
+
     # 新しいリビジョンを作成すべきかチェック
     if not should_create_revision_for_tool(tool_name, tool_input):
         sys.stdout.write("一時ファイルのため、新しいリビジョンは作成しません。\n")
         sys.exit(0)
-    
-    
+
     # リビジョンの説明を生成
-    revision_description = generate_revision_description_from_tool(tool_name, tool_input)
-    
+    revision_description = generate_revision_description_from_tool(tool_name, tool_input, cwd)
+
     # リビジョン作成実行
     revision_success, revision_result = create_new_revision(cwd, revision_description)
-    
+
     if revision_success:
         sys.stdout.write(f"🌟 新しいリビジョンを作成しました: {revision_description}\n")
         if revision_result:
