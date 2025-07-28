@@ -1,9 +1,7 @@
 """VCS抽象化レイヤー。"""
 
-import os
 import subprocess
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Optional, Tuple
 
 
@@ -67,6 +65,11 @@ class VCSBackend(ABC):
     @abstractmethod
     def get_changed_files(self, commit_id: str) -> Tuple[bool, list[str]]:
         """指定されたコミットで変更されたファイル一覧を取得する。"""
+        pass
+
+    @abstractmethod
+    def get_type(self) -> str:
+        """VCSの種類を返す（例: 'jj', 'git'）。"""
         pass
 
     def run_command(self, command: list[str], timeout: int = 30) -> Tuple[bool, str, str]:

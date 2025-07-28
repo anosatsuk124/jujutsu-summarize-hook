@@ -1,20 +1,20 @@
-# jujutsu-summarize-hook
+# vcs-cc-hook
 
-This repository provides AI-powered hooks for Claude Code that integrate with both Jujutsu (jj) and Git version control systems.
+This repository provides AI-powered hooks for Claude Code that integrate with both Jujutsu (jj) and Git version control systems with automatic detection and VCS-specific optimization.
 
 ## Features
 
 - **Multi-VCS Support**: Automatic detection and support for both Jujutsu (jj) and Git repositories
 - **Automatic New Branch/Revision Creation**: Create new branches (Git) or revisions (Jujutsu) before file edits
 - **Automatic Commits**: Automatically commit with AI-generated summaries after file edits
-- **AI-Powered Commit History Organization**: Analyze and reorganize commit history using `jj-hook organize`
-- **Sub-agent Integration**: jj-commit-organizer sub-agent for intelligent commit management
-- **Slash Command Support**: `/jj-commit-organizer` command for quick access to commit organization
+- **Sub-agent Integration**: VCS-specific sub-agents (jj-commit-organizer, git-commit-organizer, vcs-commit-organizer) for intelligent commit management
+- **Slash Command Support**: Multiple slash commands for VCS-specific and generic commit organization
 - **Template System**: Customizable prompt templates for different languages and scenarios
 - **GitHub Copilot Integration**: Built-in support for GitHub Copilot with OAuth authentication
 - **Multi-language Support**: Support for both English and Japanese commit messages and branch names
 - **Multiple LLM Providers**: Support for OpenAI, Anthropic, GitHub Copilot, local models, and more
 - **Bulk Installation**: Install all components (hooks, sub-agents, slash commands) at once
+- **Three Command Options**: VCS-specific (`jj-cc-hook`, `git-cc-hook`) and universal (`vcs-cc-hook`) commands
 
 ## Requirements
 
@@ -42,7 +42,7 @@ uv tool install .
 ### 3. Use anywhere you want (hooks/agents installation in a local directory)
 
 ```bash
-jj-hook install-all
+vcs-cc-hook install-all
 ```
 
 ## Installation for development
@@ -63,13 +63,13 @@ uv pip install -e .
 Install hooks in a specific project directory:
 
 ```bash
-jj-hook install --path .
+vcs-cc-hook install --path .
 ```
 
 Install hooks in the current directory:
 
 ```bash
-jj-hook install
+vcs-cc-hook install
 ```
 
 ### 3. Configure LLM Provider
@@ -80,13 +80,13 @@ GitHub Copilot is the recommended LLM provider as it offers seamless authenticat
 
 ```bash
 # Set GitHub Copilot as the model
-export JJ_HOOK_MODEL="github_copilot/gpt-4"
+export VCS_CC_HOOK_MODEL="github_copilot/gpt-4"
 
 # Authenticate with GitHub Copilot (opens browser for OAuth)
-jj-hook auth github-copilot
+vcs-cc-hook auth github-copilot
 
 # Check authentication status
-jj-hook auth --check
+vcs-cc-hook auth --check
 ```
 
 The authentication process will:
@@ -101,14 +101,14 @@ Set up API keys using environment variables:
 ```bash
 # OpenAI
 export OPENAI_API_KEY="your-api-key"
-export JJ_HOOK_MODEL="gpt-4"
+export VCS_CC_HOOK_MODEL="gpt-4"
 
 # Anthropic
 export ANTHROPIC_API_KEY="your-api-key"
-export JJ_HOOK_MODEL="claude-3-sonnet-20240229"
+export VCS_CC_HOOK_MODEL="claude-3-sonnet-20240229"
 
 # Language setting (optional)
-export JJ_HOOK_LANGUAGE="english"
+export VCS_CC_HOOK_LANGUAGE="english"
 ```
 
 ## Usage
@@ -128,25 +128,12 @@ export JJ_HOOK_LANGUAGE="english"
 # → After editing: Automatic commit with AI-generated message
 ```
 
-#### Commit History Organization Workflow
-
-```bash
-# Analyze and organize commit history
-jj-hook organize
-
-# Example output:
-# 🔍 Analyzing 10 commits...
-# ✅ Found 3 organization opportunities:
-#   1. Squash "fix typo" into "Add new feature" (confidence: 0.9)
-#   2. Squash "remove debug" into "Add logging" (confidence: 0.8)
-#   3. Create feature branch for commits 5-7 (confidence: 0.7)
-```
 
 #### Sub-agent Integration Workflow
 
 ```bash
 # Install sub-agent
-jj-hook install-agent --global
+vcs-cc-hook install-agent --global
 
 # Use in Claude Code:
 # "jj-commit-organizer サブエージェントを使ってコミット履歴を整理して"
@@ -159,7 +146,7 @@ jj-hook install-agent --global
 
 ```bash
 # Install slash command
-jj-hook install-slash-command --global
+vcs-cc-hook install-slash-command --global
 
 # Use in Claude Code:
 # Type: /jj-commit-organizer
@@ -174,17 +161,20 @@ jj-hook install-slash-command --global
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `JJ_HOOK_MODEL` | `gpt-3.5-turbo` | LLM model to use |
-| `JJ_HOOK_LANGUAGE` | `english` | Prompt language (`english` or `japanese`) |
-| `JJ_HOOK_MAX_TOKENS` | `100` | Maximum tokens for AI responses |
-| `JJ_HOOK_TEMPERATURE` | `0.1` | Generation temperature (0.0-1.0) |
+| `VCS_CC_HOOK_MODEL` | `gpt-3.5-turbo` | LLM model to use (universal) |
+| `JJ_CC_HOOK_MODEL` | `gpt-3.5-turbo` | LLM model to use (jj-cc-hook) |
+| `GIT_CC_HOOK_MODEL` | `gpt-3.5-turbo` | LLM model to use (git-cc-hook) |
+| `VCS_CC_HOOK_LANGUAGE` | `english` | Prompt language (`english` or `japanese`) |
+| `VCS_CC_HOOK_MAX_TOKENS` | `100` | Maximum tokens for AI responses |
+| `VCS_CC_HOOK_TEMPERATURE` | `0.1` | Generation temperature (0.0-1.0) |
 
 ### Template System
 
 The template system allows customization of AI prompts for different scenarios:
 
-- **Templates Directory**: `src/jj_hook/templates/`
-- **Language Support**: Templates automatically use the language specified in `JJ_HOOK_LANGUAGE`
+- **Templates Directory**: `src/vcs_cc_hook/templates/`
+- **VCS-Specific Templates**: Organized by VCS type (`jj/`, `git/`, `common/`)
+- **Language Support**: Templates automatically use the language specified in environment variables
 - **Template Variables**: Templates support variable substitution using Python's `str.format()` syntax
 
 #### Available Templates
@@ -211,89 +201,50 @@ The template system allows customization of AI prompts for different scenarios:
 
 ```bash
 # Summarize uncommitted changes and create a commit using AI
-jj-hook summarize
+vcs-cc-hook summarize
 
 # Summarize from a specific path (e.g., a subdirectory)
-jj-hook summarize --path ./src/my_module
+vcs-cc-hook summarize --path ./src/my_module
 ```
 
 ### Authentication
 
 ```bash
 # Authenticate with GitHub Copilot
-jj-hook auth github-copilot
+vcs-cc-hook auth github-copilot
 
 # Check authentication status
-jj-hook auth --check
+vcs-cc-hook auth --check
 ```
 
 ### Installation
 
 ```bash
 # Install hooks in current directory
-jj-hook install
+vcs-cc-hook install
 
 # Install hooks in specific directory
-jj-hook install --path /path/to/project
+vcs-cc-hook install --path /path/to/project
 
 # Install sub-agent globally
-jj-hook install-agent --global
+vcs-cc-hook install-agent --global
 
 # Install sub-agent in specific directory
-jj-hook install-agent --path /path/to/project
+vcs-cc-hook install-agent --path /path/to/project
 
 # Install slash command globally
-jj-hook install-slash-command --global
+vcs-cc-hook install-slash-command --global
 
 # Install slash command in specific directory
-jj-hook install-slash-command --path /path/to/project
+vcs-cc-hook install-slash-command --path /path/to/project
 
 # Install all components at once
-jj-hook install-all --global
+vcs-cc-hook install-all --global
 
 # Preview installation without making changes
-jj-hook install-all --dry-run
+vcs-cc-hook install-all --dry-run
 ```
 
-### Commit History Organization
-
-The `organize` command uses the jj-commit-organizer sub-agent to analyze and organize your commit history:
-
-```bash
-# Analyze and organize commit history
-jj-hook organize
-
-# Preview organization without making changes
-jj-hook organize --dry-run
-
-# Automatically organize without confirmation
-jj-hook organize --auto
-
-# Limit analysis to last N commits
-jj-hook organize --limit 20
-
-# Set thresholds for commit size classification
-jj-hook organize --tiny-threshold 5 --small-threshold 20
-
-# Aggressive mode (includes lower confidence suggestions)
-jj-hook organize --aggressive
-
-# Exclude commits matching patterns
-jj-hook organize --exclude-pattern "WIP" --exclude-pattern "temp"
-```
-
-This command:
-1. Analyzes your commit history using `jj log`
-2. Checks for safety concerns
-3. Creates a backup bookmark
-4. Generates a prompt for the jj-commit-organizer sub-agent
-5. Provides instructions for using the sub-agent to organize commits
-
-The jj-commit-organizer sub-agent can:
-- Identify logically related commits to squash using `jj squash --from <source> --into <target> -u`
-- Suggest appropriate commit messages with the `-m` option
-- Create bookmarks for feature branches
-- Perform sequential commit integration while preserving target messages
 
 ## Development
 
@@ -317,41 +268,54 @@ uv run pytest
 ### Project Structure
 
 ```
-src/jj_hook/
+src/vcs_cc_hook/
 ├── __init__.py
-├── cli.py                      # CLI entry point (includes organize command)
-├── summarizer.py               # AI functionality
-├── config.py                   # Configuration management
+├── cli_vcs.py                  # Universal CLI entry point (VCS auto-detection)
+├── cli_jj.py                   # Jujutsu-specific CLI entry point
+├── cli_git.py                  # Git-specific CLI entry point
+├── summarizer.py               # AI functionality with multi-VCS support
 ├── template_loader.py          # Template system for prompts
+├── vcs_backend.py              # VCS abstraction layer
+├── jujutsu_backend.py          # Jujutsu implementation
+├── git_backend.py              # Git implementation
 ├── hooks/
 │   ├── __init__.py
-│   ├── pre_tool_use.py         # Pre file-edit hook (new commit creation)
+│   ├── pre_tool_use.py         # Pre file-edit hook (new branch/revision creation)
 │   └── post_tool_use.py        # Post file-edit hook (auto commit)
 └── templates/
-    ├── commit_message.md       # Commit message generation template
-    ├── branch_name.md          # Branch name generation template
-    ├── commit_analysis.md      # Commit analysis template
-    ├── revision_description.md # Revision description template
-    └── agent_content.md        # Sub-agent definition template
+    ├── common/                 # Shared templates
+    │   ├── agent_content.md    # Sub-agent definition template
+    │   ├── branch_name.md      # Branch name generation template
+    │   ├── commit_analysis.md  # Commit analysis template
+    │   └── slash_command.md    # Slash command template
+    ├── jj/                     # Jujutsu-specific templates
+    │   ├── commit_message.md   # Jujutsu commit message template
+    │   └── revision_description.md # Revision description template
+    └── git/                    # Git-specific templates
+        ├── commit_message.md   # Git commit message template
+        └── commit_description.md # Commit description template
 ```
 
 ## Hook Details
 
 ### PreToolUse Hook (pre_tool_use.py)
 - **Trigger**: Before Edit, Write, MultiEdit tool calls
-- **Function**: Creates new Jujutsu commits with descriptive names using `jj new`
+- **Function**: Creates new branches (Git) or revisions (Jujutsu) with descriptive names
 - **Behavior**: 
+  - Auto-detects VCS type (Git/Jujutsu)
   - Skips temporary files and configuration files
-  - Only creates new commits when no uncommitted changes exist
-  - Generates commit descriptions based on file path and content
+  - Only creates new branches/revisions when appropriate
+  - Generates descriptions based on file path and content
 
 ### PostToolUse Hook (post_tool_use.py)
 - **Trigger**: After Edit, Write, MultiEdit tool calls
 - **Function**: Automatically commits changes with AI-generated summaries
 - **Behavior**:
-  - Uses LiteLLM to generate commit messages
+  - Uses VCS-specific templates for commit messages
+  - Uses LiteLLM to generate context-aware commit messages
   - Falls back to simple messages if AI generation fails
   - Only commits when changes are detected
+  - Supports both Git and Jujutsu workflows
 
 ## Language Support
 

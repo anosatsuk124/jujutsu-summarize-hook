@@ -7,7 +7,6 @@ automatically commits changes to the Jujutsu repository with an AI-generated sum
 
 import json
 import os
-import subprocess
 import sys
 
 # 言語設定の取得
@@ -18,20 +17,13 @@ IMPORT_SUCCESS = True
 IMPORT_ERROR = None
 
 try:
-    from jj_hook.summarizer import JujutsuSummarizer, SummaryConfig
-    from jj_hook.vcs_backend import detect_vcs_backend, is_vcs_repository
+    from ..summarizer import JujutsuSummarizer, SummaryConfig
+    from ..vcs_backend import detect_vcs_backend, is_vcs_repository
+    IMPORT_SUCCESS = True
+    IMPORT_ERROR = None
 except ImportError as e:
     IMPORT_SUCCESS = False
     IMPORT_ERROR = str(e)
-    try:
-        from ..summarizer import JujutsuSummarizer, SummaryConfig
-        from ..vcs_backend import detect_vcs_backend, is_vcs_repository
-
-        IMPORT_SUCCESS = True
-        IMPORT_ERROR = None
-    except ImportError as e2:
-        IMPORT_SUCCESS = False
-        IMPORT_ERROR = str(e2)
 
     def create_fallback_summary(cwd: str) -> str:
         """フォールバック用の簡単なサマリー生成。"""

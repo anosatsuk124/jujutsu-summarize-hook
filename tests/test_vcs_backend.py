@@ -1,14 +1,14 @@
 """VCS バックエンドのテスト。"""
 
-import tempfile
-import os
-from pathlib import Path
 import subprocess
+import tempfile
+from pathlib import Path
+
 import pytest
 
-from src.jj_hook.vcs_backend import detect_vcs_backend, is_vcs_repository
 from src.jj_hook.git_backend import GitBackend
 from src.jj_hook.jujutsu_backend import JujutsuBackend
+from src.jj_hook.vcs_backend import detect_vcs_backend, is_vcs_repository
 
 
 def test_git_backend_detection():

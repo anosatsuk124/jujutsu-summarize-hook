@@ -1,7 +1,5 @@
 """Git VCSバックエンドの実装。"""
 
-import os
-from pathlib import Path
 from typing import Optional, Tuple
 
 from .vcs_backend import VCSBackend
@@ -181,3 +179,7 @@ class GitBackend(VCSBackend):
             return True, f"コミットをスカッシュしました: {new_message}"
         else:
             return False, f"コミットに失敗: {stderr}"
+
+    def get_type(self) -> str:
+        """VCSの種類を返す。"""
+        return "git"

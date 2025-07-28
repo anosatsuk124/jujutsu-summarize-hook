@@ -1,7 +1,7 @@
 Please respond in {language}.
 Please write any messages in {language}.
 
-Generate a concise and clear commit message based on the following Jujutsu (jj) repository changes.
+Generate a concise and clear revision description based on the following Jujutsu (jj) repository changes.
 
 ## jj status:
 {status}
@@ -17,4 +17,4 @@ Generate a concise and clear commit message based on the following Jujutsu (jj) 
 
 Examples: "Add user authentication", "Fix login error handling", "Update configuration"
 
-Output only the commit message:
+Output only the revision description:
