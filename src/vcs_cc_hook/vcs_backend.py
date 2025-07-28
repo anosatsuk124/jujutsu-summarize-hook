@@ -67,6 +67,11 @@ class VCSBackend(ABC):
         """指定されたコミットで変更されたファイル一覧を取得する。"""
         pass
 
+    @abstractmethod
+    def get_type(self) -> str:
+        """VCSの種類を返す（例: 'jj', 'git'）。"""
+        pass
+
     def run_command(self, command: list[str], timeout: int = 30) -> Tuple[bool, str, str]:
         """コマンドを実行して結果を返すヘルパーメソッド。"""
         try:

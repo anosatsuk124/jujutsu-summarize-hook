@@ -33,8 +33,14 @@ class JujutsuSummarizer:
         self.config = config or SummaryConfig()
         self.vcs_backend = vcs_backend
 
-        # 環境変数からモデルを上書き
-        if model_env := os.environ.get("JJ_HOOK_MODEL"):
+        # 環境変数からモデルを上書き（複数のパターンをサポート）
+        model_env = (
+            os.environ.get("VCS_CC_HOOK_MODEL") or
+            os.environ.get("JJ_CC_HOOK_MODEL") or
+            os.environ.get("GIT_CC_HOOK_MODEL") or
+            os.environ.get("JJ_HOOK_MODEL")  # 下位互換
+        )
+        if model_env:
             self.config.model = model_env
 
     def _get_vcs_backend(self, cwd: str) -> VCSBackend:
@@ -77,8 +83,10 @@ class JujutsuSummarizer:
         if not diff_output.strip():
             return False, "変更がありません"
 
-        # プロンプトを構築
-        prompt = load_template("commit_message", status=status_output, diff=diff_output)
+        # プロンプトを構築（VCSタイプを指定）
+        from .template_loader import TemplateLoader
+        template_loader = TemplateLoader(vcs_type=backend.get_type())
+        prompt = template_loader.load_template("commit_message", status=status_output, diff=diff_output)
 
         try:
             # LiteLLMでサマリーを生成
@@ -109,7 +117,13 @@ class JujutsuSummarizer:
             return True, summary
 
         except Exception as e:
-            language = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+            language = (
+                os.environ.get("VCS_CC_HOOK_LANGUAGE") or
+                os.environ.get("JJ_CC_HOOK_LANGUAGE") or
+                os.environ.get("GIT_CC_HOOK_LANGUAGE") or
+                os.environ.get("JJ_HOOK_LANGUAGE") or  # 下位互換
+                "english"
+            )
             error_msg = (
                 f"サマリー生成エラー: {str(e)}"
                 if language == "japanese"
@@ -125,7 +139,11 @@ class JujutsuSummarizer:
             (success, branch_name): 成功フラグとブランチ名
         """
         try:
-            system_prompt = load_template("branch_name", prompt=prompt)
+            # VCSタイプを指定してテンプレートローダーを作成
+            backend = detect_vcs_backend(os.getcwd())
+            from .template_loader import TemplateLoader
+            template_loader = TemplateLoader(vcs_type=backend.get_type() if backend else None)
+            system_prompt = template_loader.load_template("branch_name", prompt=prompt)
 
             completion_kwargs = {
                 "model": self.config.model,
@@ -155,7 +173,13 @@ class JujutsuSummarizer:
             return True, branch_name
 
         except Exception as e:
-            language = os.environ.get("JJ_HOOK_LANGUAGE", "english")
+            language = (
+                os.environ.get("VCS_CC_HOOK_LANGUAGE") or
+                os.environ.get("JJ_CC_HOOK_LANGUAGE") or
+                os.environ.get("GIT_CC_HOOK_LANGUAGE") or
+                os.environ.get("JJ_HOOK_LANGUAGE") or  # 下位互換
+                "english"
+            )
             error_msg = (
                 f"ブランチ名生成エラー: {str(e)}"
                 if language == "japanese"
@@ -206,8 +230,14 @@ class CommitOrganizer:
         self.config = config or SummaryConfig()
         self.vcs_backend = vcs_backend
 
-        # 環境変数からモデルを上書き
-        if model_env := os.environ.get("JJ_HOOK_MODEL"):
+        # 環境変数からモデルを上書き（複数のパターンをサポート）
+        model_env = (
+            os.environ.get("VCS_CC_HOOK_MODEL") or
+            os.environ.get("JJ_CC_HOOK_MODEL") or
+            os.environ.get("GIT_CC_HOOK_MODEL") or
+            os.environ.get("JJ_HOOK_MODEL")  # 下位互換
+        )
+        if model_env:
             self.config.model = model_env
 
         # 設定可能なパラメータ
@@ -729,7 +759,11 @@ class CommitOrganizer:
             for commit_id, details in commit_details.items():
                 details_text += f"\n{commit_id}: {details['message']}\n{details['diff_stat']}\n"
 
-            prompt = load_template(
+            # VCSタイプを指定してテンプレートローダーを作成
+            backend = self._get_vcs_backend(".")
+            from .template_loader import TemplateLoader
+            template_loader = TemplateLoader(vcs_type=backend.get_type())
+            prompt = template_loader.load_template(
                 "commit_analysis", log_output=log_output, details_text=details_text
             )
 

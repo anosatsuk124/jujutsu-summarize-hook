@@ -179,3 +179,7 @@ class GitBackend(VCSBackend):
             return True, f"コミットをスカッシュしました: {new_message}"
         else:
             return False, f"コミットに失敗: {stderr}"
+
+    def get_type(self) -> str:
+        """VCSの種類を返す。"""
+        return "git"

@@ -177,3 +177,7 @@ class JujutsuBackend(VCSBackend):
     def create_backup_branch(self, name: str) -> Tuple[bool, str]:
         """バックアップブランチを作成する（Gitバックエンドとの互換性のため）。"""
         return self.create_backup_bookmark(name)
+
+    def get_type(self) -> str:
+        """VCSの種類を返す。"""
+        return "jj"
