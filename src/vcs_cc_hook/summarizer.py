@@ -35,10 +35,10 @@ class JujutsuSummarizer:
 
         # 環境変数からモデルを上書き（複数のパターンをサポート）
         model_env = (
-            os.environ.get("VCS_CC_HOOK_MODEL") or
-            os.environ.get("JJ_CC_HOOK_MODEL") or
-            os.environ.get("GIT_CC_HOOK_MODEL") or
-            os.environ.get("JJ_HOOK_MODEL")  # 下位互換
+            os.environ.get("VCS_CC_HOOK_MODEL")
+            or os.environ.get("JJ_CC_HOOK_MODEL")
+            or os.environ.get("GIT_CC_HOOK_MODEL")
+            or os.environ.get("JJ_HOOK_MODEL")  # 下位互換
         )
         if model_env:
             self.config.model = model_env
@@ -85,8 +85,11 @@ class JujutsuSummarizer:
 
         # プロンプトを構築（VCSタイプを指定）
         from .template_loader import TemplateLoader
+
         template_loader = TemplateLoader(vcs_type=backend.get_type())
-        prompt = template_loader.load_template("commit_message", status=status_output, diff=diff_output)
+        prompt = template_loader.load_template(
+            "commit_message", status=status_output, diff=diff_output
+        )
 
         try:
             # LiteLLMでサマリーを生成
@@ -118,11 +121,11 @@ class JujutsuSummarizer:
 
         except Exception as e:
             language = (
-                os.environ.get("VCS_CC_HOOK_LANGUAGE") or
-                os.environ.get("JJ_CC_HOOK_LANGUAGE") or
-                os.environ.get("GIT_CC_HOOK_LANGUAGE") or
-                os.environ.get("JJ_HOOK_LANGUAGE") or  # 下位互換
-                "english"
+                os.environ.get("VCS_CC_HOOK_LANGUAGE")
+                or os.environ.get("JJ_CC_HOOK_LANGUAGE")
+                or os.environ.get("GIT_CC_HOOK_LANGUAGE")
+                or os.environ.get("JJ_HOOK_LANGUAGE")  # 下位互換
+                or "english"
             )
             error_msg = (
                 f"サマリー生成エラー: {str(e)}"
@@ -142,6 +145,7 @@ class JujutsuSummarizer:
             # VCSタイプを指定してテンプレートローダーを作成
             backend = detect_vcs_backend(os.getcwd())
             from .template_loader import TemplateLoader
+
             template_loader = TemplateLoader(vcs_type=backend.get_type() if backend else None)
             system_prompt = template_loader.load_template("branch_name", prompt=prompt)
 
@@ -174,11 +178,11 @@ class JujutsuSummarizer:
 
         except Exception as e:
             language = (
-                os.environ.get("VCS_CC_HOOK_LANGUAGE") or
-                os.environ.get("JJ_CC_HOOK_LANGUAGE") or
-                os.environ.get("GIT_CC_HOOK_LANGUAGE") or
-                os.environ.get("JJ_HOOK_LANGUAGE") or  # 下位互換
-                "english"
+                os.environ.get("VCS_CC_HOOK_LANGUAGE")
+                or os.environ.get("JJ_CC_HOOK_LANGUAGE")
+                or os.environ.get("GIT_CC_HOOK_LANGUAGE")
+                or os.environ.get("JJ_HOOK_LANGUAGE")  # 下位互換
+                or "english"
             )
             error_msg = (
                 f"ブランチ名生成エラー: {str(e)}"
@@ -232,10 +236,10 @@ class CommitOrganizer:
 
         # 環境変数からモデルを上書き（複数のパターンをサポート）
         model_env = (
-            os.environ.get("VCS_CC_HOOK_MODEL") or
-            os.environ.get("JJ_CC_HOOK_MODEL") or
-            os.environ.get("GIT_CC_HOOK_MODEL") or
-            os.environ.get("JJ_HOOK_MODEL")  # 下位互換
+            os.environ.get("VCS_CC_HOOK_MODEL")
+            or os.environ.get("JJ_CC_HOOK_MODEL")
+            or os.environ.get("GIT_CC_HOOK_MODEL")
+            or os.environ.get("JJ_HOOK_MODEL")  # 下位互換
         )
         if model_env:
             self.config.model = model_env
@@ -762,6 +766,7 @@ class CommitOrganizer:
             # VCSタイプを指定してテンプレートローダーを作成
             backend = self._get_vcs_backend(".")
             from .template_loader import TemplateLoader
+
             template_loader = TemplateLoader(vcs_type=backend.get_type())
             prompt = template_loader.load_template(
                 "commit_analysis", log_output=log_output, details_text=details_text
