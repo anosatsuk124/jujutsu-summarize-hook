@@ -19,6 +19,7 @@ IMPORT_ERROR = None
 try:
     from ..summarizer import JujutsuSummarizer, SummaryConfig
     from ..vcs_backend import detect_vcs_backend, is_vcs_repository
+
     IMPORT_SUCCESS = True
     IMPORT_ERROR = None
 except ImportError as e:

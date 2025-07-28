@@ -22,24 +22,25 @@ def check_github_copilot_auth() -> tuple[bool, str]:
     """GitHub Copilot認証状態をチェックする。"""
     try:
         import litellm
-        
+
         # 軽量なテストリクエストで認証状態を確認
         from .summarizer import JujutsuSummarizer, SummaryConfig
+
         config = SummaryConfig()
-        
+
         # JJ専用環境変数を優先チェック
         model_env = (
-            os.environ.get("JJ_CC_HOOK_MODEL") or
-            os.environ.get("VCS_CC_HOOK_MODEL") or
-            os.environ.get("JJ_HOOK_MODEL")  # 下位互換
+            os.environ.get("JJ_CC_HOOK_MODEL")
+            or os.environ.get("VCS_CC_HOOK_MODEL")
+            or os.environ.get("JJ_HOOK_MODEL")  # 下位互換
         )
         if model_env:
             config.model = model_env
-            
+
         summarizer = JujutsuSummarizer(config=config)
         if not config.model.startswith("github_copilot/"):
             return False, "GitHub Copilotモデルが設定されていません"
-        
+
         # 短いテストリクエスト
         response = litellm.completion(
             model=config.model,
@@ -70,19 +71,20 @@ def authenticate_github_copilot() -> bool:
         import litellm
 
         console.print("\n[blue]GitHub Copilot認証を開始します...[/blue]")
-        
+
         from .summarizer import JujutsuSummarizer, SummaryConfig
+
         config = SummaryConfig()
-        
+
         # JJ専用環境変数を優先チェック
         model_env = (
-            os.environ.get("JJ_CC_HOOK_MODEL") or
-            os.environ.get("VCS_CC_HOOK_MODEL") or
-            os.environ.get("JJ_HOOK_MODEL")  # 下位互換
+            os.environ.get("JJ_CC_HOOK_MODEL")
+            or os.environ.get("VCS_CC_HOOK_MODEL")
+            or os.environ.get("JJ_HOOK_MODEL")  # 下位互換
         )
         if model_env:
             config.model = model_env
-            
+
         summarizer = JujutsuSummarizer(config=config)
         if not config.model.startswith("github_copilot/"):
             console.print(
@@ -93,7 +95,7 @@ def authenticate_github_copilot() -> bool:
                 return False
 
         console.print("[cyan]認証リクエストを送信中...[/cyan]")
-        
+
         # 認証フローを開始するためのリクエスト
         response = litellm.completion(
             model="github_copilot/gpt-4",
@@ -105,11 +107,11 @@ def authenticate_github_copilot() -> bool:
                 "Copilot-Integration-Id": "vscode-chat",
             },
         )
-        
+
         console.print("[green]✅ GitHub Copilot認証が完了しました！[/green]")
         console.print(f"[dim]レスポンス: {response.choices[0].message.content[:50]}...[/dim]")
         return True
-        
+
     except ImportError:
         console.print("[red]❌ エラー: litellmパッケージがインストールされていません[/red]")
         return False
@@ -148,9 +150,9 @@ def authenticate_github_copilot() -> bool:
 def get_slash_command_content(template_name: str = "slash_command") -> str:
     """スラッシュコマンドの内容を取得する。"""
     from .template_loader import TemplateLoader
-    
+
     template_loader = TemplateLoader(vcs_type="jj")
-    
+
     # テンプレートから内容を読み込み
     try:
         content = template_loader.load_template(template_name)
@@ -439,9 +441,9 @@ def summarize() -> None:
 @click.option("--check", "-c", is_flag=True, help="認証状態のみ確認")
 def auth(provider: str, check: bool) -> None:
     """LLMプロバイダーの認証を行う（Jujutsu専用）。
-    
+
     PROVIDER: 認証するプロバイダー (github-copilot)
-    
+
     例:
     \b
     jj-cc-hook auth github-copilot    # GitHub Copilot認証を実行
@@ -449,22 +451,22 @@ def auth(provider: str, check: bool) -> None:
     """
     if check:
         console.print("[blue]認証状態を確認中...[/blue]")
-        
+
         if provider == "github-copilot":
             is_authenticated, status = check_github_copilot_auth()
-            
+
             if is_authenticated:
                 console.print(f"[green]✅ GitHub Copilot: {status}[/green]")
             else:
                 console.print(f"[red]❌ GitHub Copilot: {status}[/red]")
-        
+
         return
 
     if provider == "github-copilot":
         console.print(f"[blue]🔐 {provider} 認証を開始します[/blue]")
-        
+
         success = authenticate_github_copilot()
-        
+
         if success:
             console.print("[green]✅ 認証が完了しました！[/green]")
             console.print("[dim]これで jj-cc-hook を使用する準備が整いました。[/dim]")
@@ -490,7 +492,7 @@ def auth(provider: str, check: bool) -> None:
 )
 def install_agent(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
     """Jujutsu専用のサブエージェント (jj-commit-organizer) をClaude Codeに追加する。"""
-    
+
     if is_global and path:
         console.print("[red]エラー: --globalと--pathは同時に指定できません[/red]")
         sys.exit(1)
@@ -512,6 +514,7 @@ def install_agent(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
     try:
         # エージェント内容を取得
         from .template_loader import TemplateLoader
+
         template_loader = TemplateLoader(vcs_type="jj")
         try:
             agent_content = template_loader.load_template("agent_content")
@@ -562,7 +565,7 @@ Task(description="jj-commit-organizer でコミット履歴を整理", prompt="J
                     "jj-commit-organizer サブエージェントのインストールが完了しました！\n\n"
                     "使用方法:\n"
                     "• Claude Code内で 'jj-commit-organizer' と呼び出し\n"
-                    "• Task(subagent_type=\"jj-commit-organizer\") でプログラム的に実行\n"
+                    '• Task(subagent_type="jj-commit-organizer") でプログラム的に実行\n'
                     "• /jj-commit-organizer スラッシュコマンド（別途インストール要）\n\n"
                     f"インストール先: {agent_file}",
                     style="bold green",
@@ -580,7 +583,7 @@ Task(description="jj-commit-organizer でコミット履歴を整理", prompt="J
 @cli.command(name="install-slash-command")
 @click.option(
     "--global",
-    "is_global", 
+    "is_global",
     is_flag=True,
     help="グローバル設定（~/.claude/）にインストール",
 )
@@ -594,7 +597,7 @@ Task(description="jj-commit-organizer でコミット履歴を整理", prompt="J
 )
 def install_slash_command(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
     """Jujutsu専用のスラッシュコマンド (/jj-commit-organizer) をClaude Codeに追加する。"""
-    
+
     if is_global and path:
         console.print("[red]エラー: --globalと--pathは同時に指定できません[/red]")
         sys.exit(1)
@@ -667,23 +670,23 @@ def install_slash_command(is_global: bool, dry_run: bool, path: Optional[Path]) 
 )
 def install_all(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
     """Jujutsu専用のすべてのコンポーネント（フック、サブエージェント、スラッシュコマンド）を一括インストールする。"""
-    
+
     if is_global and path:
         console.print("[red]エラー: --globalと--pathは同時に指定できません[/red]")
         sys.exit(1)
 
     install_location = "グローバル設定" if is_global else f"ローカル設定 ({path or Path.cwd()})"
-    
+
     console.print(f"[blue]🚀 jj-cc-hook 一括インストールを開始します[/blue]")
     console.print(f"[blue]インストール先: {install_location}[/blue]")
-    
+
     if dry_run:
         console.print("\n[yellow]⚠️  ドライランモード - 実際の変更は行いません[/yellow]")
 
     try:
         # 1. フックのインストール
         console.print("\n[cyan]1. Claude Code フックのインストール...[/cyan]")
-        
+
         # install コマンドの処理を直接実行
         if is_global:
             settings_file = Path.home() / ".claude" / "settings.json"
@@ -700,22 +703,23 @@ def install_all(is_global: bool, dry_run: bool, path: Optional[Path]) -> None:
             settings_file.parent.mkdir(parents=True, exist_ok=True)
             with open(settings_file, "w", encoding="utf-8") as f:
                 json.dump(merged_settings, f, indent=2, ensure_ascii=False)
-        
+
         console.print("   [green]✅ フックのインストール完了[/green]")
 
         # 2. サブエージェントのインストール
         console.print("\n[cyan]2. サブエージェント (jj-commit-organizer) のインストール...[/cyan]")
-        
+
         if is_global:
             agents_dir = Path.home() / ".claude" / "agents"
         else:
             target_path = path if path is not None else Path.cwd()
-            claude_dir = create_claude_settings_dir(target_path) 
+            claude_dir = create_claude_settings_dir(target_path)
             agents_dir = claude_dir / "agents"
 
         agent_file = agents_dir / "jj-commit-organizer.md"
 
         from .template_loader import TemplateLoader
+
         template_loader = TemplateLoader(vcs_type="jj")
         try:
             agent_content = template_loader.load_template("agent_content")
@@ -737,12 +741,14 @@ jj-cc-hook analyze --interactive
             agents_dir.mkdir(parents=True, exist_ok=True)
             with open(agent_file, "w", encoding="utf-8") as f:
                 f.write(agent_content)
-        
+
         console.print("   [green]✅ サブエージェントのインストール完了[/green]")
 
         # 3. スラッシュコマンドのインストール
-        console.print("\n[cyan]3. スラッシュコマンド (/jj-commit-organizer) のインストール...[/cyan]")
-        
+        console.print(
+            "\n[cyan]3. スラッシュコマンド (/jj-commit-organizer) のインストール...[/cyan]"
+        )
+
         if is_global:
             slash_commands_dir = Path.home() / ".claude" / "slash_commands"
         else:
@@ -757,7 +763,7 @@ jj-cc-hook analyze --interactive
             slash_commands_dir.mkdir(parents=True, exist_ok=True)
             with open(slash_command_file, "w", encoding="utf-8") as f:
                 f.write(slash_command_content)
-        
+
         console.print("   [green]✅ スラッシュコマンドのインストール完了[/green]")
 
         # 完了メッセージ
@@ -783,7 +789,9 @@ jj-cc-hook analyze --interactive
         )
 
         if dry_run:
-            console.print("\n[yellow]💡 実際にインストールするには --dry-run オプションを外して再実行してください[/yellow]")
+            console.print(
+                "\n[yellow]💡 実際にインストールするには --dry-run オプションを外して再実行してください[/yellow]"
+            )
 
     except Exception as e:
         console.print(f"[red]❌ インストール中にエラーが発生しました: {e}[/red]")

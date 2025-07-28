@@ -51,16 +51,21 @@ class TemplateLoader:
                 template_path = legacy_path
 
         if template_path is None:
-            raise FileNotFoundError(f"Template not found: {template_name} (searched in VCS-specific, common, and legacy locations)")
+            raise FileNotFoundError(
+                f"Template not found: {template_name} (searched in VCS-specific, common, and legacy locations)"
+            )
 
         # テンプレートファイルを読み込み
         with open(template_path, encoding="utf-8") as f:
             template_content = f.read()
 
         # 言語を自動取得・capitalize
-        language = os.environ.get("VCS_CC_HOOK_LANGUAGE",
-                                 os.environ.get("JJ_CC_HOOK_LANGUAGE",
-                                              os.environ.get("GIT_CC_HOOK_LANGUAGE", "english"))).capitalize()
+        language = os.environ.get(
+            "VCS_CC_HOOK_LANGUAGE",
+            os.environ.get(
+                "JJ_CC_HOOK_LANGUAGE", os.environ.get("GIT_CC_HOOK_LANGUAGE", "english")
+            ),
+        ).capitalize()
 
         # デフォルト変数を設定
         variables = {"language": language, **kwargs}
@@ -73,9 +78,12 @@ class TemplateLoader:
 
     def get_language_instruction(self) -> str:
         """言語指定文を取得する。"""
-        language = os.environ.get("VCS_CC_HOOK_LANGUAGE",
-                                 os.environ.get("JJ_CC_HOOK_LANGUAGE",
-                                              os.environ.get("GIT_CC_HOOK_LANGUAGE", "english"))).capitalize()
+        language = os.environ.get(
+            "VCS_CC_HOOK_LANGUAGE",
+            os.environ.get(
+                "JJ_CC_HOOK_LANGUAGE", os.environ.get("GIT_CC_HOOK_LANGUAGE", "english")
+            ),
+        ).capitalize()
         return f"Please respond in {language}."
 
 

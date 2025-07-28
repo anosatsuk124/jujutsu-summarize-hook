@@ -173,11 +173,13 @@ def get_vcs_backend(cwd: str, vcs_type: Optional[str] = None) -> Optional[VCSBac
         # 明示的に指定された場合
         if vcs_type == "git":
             from .git_backend import GitBackend
+
             backend: VCSBackend = GitBackend(cwd)
             if backend.is_repository():
                 return backend
         elif vcs_type == "jj":
             from .jujutsu_backend import JujutsuBackend
+
             backend = JujutsuBackend(cwd)
             if backend.is_repository():
                 return backend
@@ -411,7 +413,11 @@ def summarize(vcs: Optional[str]) -> None:
             sys.exit(0)
 
         # VCSタイプに応じたメッセージ
-        vcs_name = "Git" if isinstance(backend, type(backend)) and "git" in str(type(backend)).lower() else "Jujutsu"
+        vcs_name = (
+            "Git"
+            if isinstance(backend, type(backend)) and "git" in str(type(backend)).lower()
+            else "Jujutsu"
+        )
         action = "コミットメッセージ" if "git" in str(type(backend)).lower() else "リビジョン説明"
 
         console.print(f"[blue]AIが{action}を生成中...[/blue]")
