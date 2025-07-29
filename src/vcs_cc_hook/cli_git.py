@@ -603,12 +603,12 @@ def install_slash_command(is_global: bool, dry_run: bool, path: Optional[Path]) 
         sys.exit(1)
 
     if is_global:
-        slash_commands_dir = Path.home() / ".claude" / "slash_commands"
+        slash_commands_dir = Path.home() / ".claude" / "commands"
         install_location = "グローバル設定"
     else:
         target_path = path if path is not None else Path.cwd()
         claude_dir = create_claude_settings_dir(target_path)
-        slash_commands_dir = claude_dir / "slash_commands"
+        slash_commands_dir = claude_dir / "commands"
         install_location = f"ローカル設定 ({target_path})"
 
     slash_command_file = slash_commands_dir / "git-commit-organizer.md"
@@ -750,11 +750,11 @@ git-cc-hook analyze --interactive
         )
 
         if is_global:
-            slash_commands_dir = Path.home() / ".claude" / "slash_commands"
+            slash_commands_dir = Path.home() / ".claude" / "commands"
         else:
             target_path = path if path is not None else Path.cwd()
             claude_dir = create_claude_settings_dir(target_path)
-            slash_commands_dir = claude_dir / "slash_commands"
+            slash_commands_dir = claude_dir / "commands"
 
         slash_command_file = slash_commands_dir / "git-commit-organizer.md"
         slash_command_content = get_slash_command_content()
